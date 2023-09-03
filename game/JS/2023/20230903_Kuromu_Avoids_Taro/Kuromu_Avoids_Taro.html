@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>庫主播躲芋頭_v1.0</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+        }
+        #gameArea {
+            width: 500px;
+            height: 700px;
+            background-image: url('bg.png');
+            position: relative;
+            overflow: hidden;
+        }
+        #player, .block {
+            position: absolute;
+            bottom: 0;
+        }
+        #player {
+            width: 200px;
+            height: 200px;
+            background-image: url('main.png');
+        }
+        .block {
+            width: 100px;
+            height: 100px;
+            background-image: url('block.png');
+        }
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+            color: red;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h2>庫主播躲芋頭!</h2>
+    <p>滑鼠左右幫庫主播躲芋頭吧!</p>
+    <div id="gameArea">
+        <div id="player"></div>
+        <div id="gameOver">遊戲結束!</div>
+    </div>
+    <div id="score">已閃躲了0秒</div>
+
+    <script>
+        let player = document.getElementById('player');
+        let gameArea = document.getElementById('gameArea');
+        let scoreElem = document.getElementById('score');
+        let gameOverElem = document.getElementById('gameOver');
+        let score = 0;
+        let speed = 3;
+        let gameInterval;
+        let blockInterval;
+        let timerInterval;
+
+        gameArea.addEventListener('mousemove', function(e) {
+            let gameAreaRect = gameArea.getBoundingClientRect();
+            let newLeft = e.clientX - gameAreaRect.left - player.offsetWidth / 2;
+            if (newLeft < 0) newLeft = 0;
+            if (newLeft > gameArea.offsetWidth - player.offsetWidth) newLeft = gameArea.offsetWidth - player.offsetWidth;
+            player.style.left = newLeft + 'px';
+        });
+
+        function startGame() {
+            score = 0;
+            speed = 3;
+            scoreElem.innerText = '已閃躲了0秒';
+            player.style.backgroundImage = "url('main.png')";
+            gameOverElem.style.display = 'none';
+            gameInterval = setInterval(updateGame, 100);
+            timerInterval = setInterval(updateTimer, 1000);
+            createBlock();
+        }
+
+        function updateGame() {
+            let blocks = document.querySelectorAll('.block');
+            blocks.forEach(block => {
+                let top = parseInt(block.style.top || 0);
+                top += speed;
+                if (top > gameArea.offsetHeight) {
+                    block.remove();
+                    createBlock();
+                } else {
+                    block.style.top = top + 'px';
+                    if (isColliding(block, player)) {
+                        player.style.backgroundImage = "url('dead.png')";
+                        endGame();
+                    }
+                }
+            });
+
+            if (score % 10 === 0 && score !== 0) {
+                speed++;
+            }
+        }
+
+        function createBlock() {
+            let block = document.createElement('div');
+            block.classList.add('block');
+            block.style.top = '-100px';
+            block.style.left = Math.random() * (gameArea.offsetWidth - 100) + 'px';
+            gameArea.appendChild(block);
+        }
+
+        function isColliding(div1, div2) {
+            let rect1 = div1.getBoundingClientRect();
+            let rect2 = div2.getBoundingClientRect();
+            let playerCenterX = rect2.left + rect2.width / 2;
+            let playerCenterY = rect2.top + rect2.height / 2;
+
+            return (
+                playerCenterX - 60 < rect1.right &&
+                playerCenterX + 60 > rect1.left &&
+                playerCenterY - 60 < rect1.bottom &&
+                playerCenterY + 60 > rect1.top
+            );
+        }
+
+        function updateTimer() {
+            score++;
+            scoreElem.innerText = '已閃躲了' + score + '秒';
+        }
+
+        function endGame() {
+            clearInterval(gameInterval);
+            clearInterval(timerInterval);
+            gameOverElem.innerText = '遊戲結束! \n你撐了' + score + '秒!\n擊點遊戲重新一局';
+            gameOverElem.style.display = 'block';
+        }
+
+        gameArea.addEventListener('click', function() {
+            gameArea.innerHTML = '<div id="player"></div><div id="gameOver">遊戲結束!</div>';
+            player = document.getElementById('player');
+            gameOverElem = document.getElementById('gameOver');
+            startGame();
+        });
+
+        startGame();
+    </script>
+</body>
+</html>
