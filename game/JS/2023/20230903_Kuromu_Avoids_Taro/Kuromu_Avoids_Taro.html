@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -53,7 +54,6 @@
         <div id="gameOver">遊戲結束!</div>
     </div>
     <div id="score">已閃躲了0秒</div>
-
     <script>
         let player = document.getElementById('player');
         let gameArea = document.getElementById('gameArea');
@@ -65,13 +65,21 @@
         let blockInterval;
         let timerInterval;
 
-        gameArea.addEventListener('mousemove', function(e) {
+        function movePlayer(e) {
             let gameAreaRect = gameArea.getBoundingClientRect();
-            let newLeft = e.clientX - gameAreaRect.left - player.offsetWidth / 2;
+            let newLeft;
+            if (e.touches) {
+                newLeft = e.touches[0].clientX - gameAreaRect.left - player.offsetWidth / 2;
+            } else {
+                newLeft = e.clientX - gameAreaRect.left - player.offsetWidth / 2;
+            }
             if (newLeft < 0) newLeft = 0;
             if (newLeft > gameArea.offsetWidth - player.offsetWidth) newLeft = gameArea.offsetWidth - player.offsetWidth;
             player.style.left = newLeft + 'px';
-        });
+        }
+
+        gameArea.addEventListener('mousemove', movePlayer);
+        gameArea.addEventListener('touchmove', movePlayer);
 
         function startGame() {
             score = 0;
