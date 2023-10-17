@@ -70,6 +70,36 @@
 </table>
 
 
+function sortTable(n, type) {
+    var table, rows, switching, i, x, y, shouldSwitch;
+    table = document.getElementById("dataTable");
+    switching = true;
+    while (switching) {
+        switching = false;
+        rows = table.rows;
+        for (i = 1; i < (rows.length - 1); i++) {
+            shouldSwitch = false;
+            x = rows[i].getElementsByTagName("TD")[n];
+            y = rows[i + 1].getElementsByTagName("TD")[n];
+            if (type === 'number') {
+                if ((sortDirection[n] ? 1 : -1) * (Number(x.innerHTML) - Number(y.innerHTML)) > 0) {
+                    shouldSwitch = true;
+                    break;
+                }
+            } else {
+                if ((sortDirection[n] ? 1 : -1) * x.innerHTML.toLowerCase().localeCompare(y.innerHTML.toLowerCase()) > 0) {
+                    shouldSwitch = true;
+                    break;
+                }
+            }
+        }
+        if (shouldSwitch) {
+            rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+            switching = true;
+        }
+    }
+    sortDirection[n] = !sortDirection[n]; // 翻轉排序方向
+}
 
 function toggleButtonText(buttonId, defaultText, toggledText) {
     var button = document.getElementById(buttonId);
