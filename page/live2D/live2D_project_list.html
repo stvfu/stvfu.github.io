@@ -1,1 +1,125 @@
-test
+<!DOCTYPE html>
+<html>
+<head>
+        <title>Live2D專案紀錄(v20231017)</title>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <script type="text/JavaScript" src="../flot.js"></script>
+        <script  type="text/JavaScript" src="../foldheader.js"></script>
+        <style>
+            #foldheader{cursor:pointer;cursor:hand ; color:#7777FF;font-weight:bold ;
+            list-style-image:url(fold.gif)}
+            #foldinglist{list-style-image:url(list.gif)}
+            #point_Y {font-family:"微軟正黑體";color:#FFFF00;font-size:20px;}
+            #text {font-family:"微軟正黑體";font-size:16px;}
+        </style>
+        <style>
+        .post .codeblock {
+        display: block; /* fixes a strange ie margin bug */
+        font-family: Courier New;
+        font-size: 10pt;
+        overflow:auto;
+        background: #f0f0f0 url(data:image/gif;base64,iVBORw0KGgoAAAANSUhEUgAAAAsAAASwCAYAAAAt7rCDAAAABHNCSVQICAgIfAhkiAAAAQJJREFUeJzt0kEKhDAMBdA4zFmbM+W0upqFOhXrDILwsimFR5pfMrXW5jhZr7PwRlxVX8//jNHrGhExjXzdu9c5IiIz+7iqVmB7Hwp4OMa2nhhwN/PRGEMBh3Zjt6KfpzPztxW9MSAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzB8HS+J9kUTvzEDMwAAAABJRU5ErkJggg==) left top repeat-y;
+        border: 1px solid #ccc;
+        padding: 10px 10px 10px 21px;
+        max-height:1000px;
+        line-height: 1.2em;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body
+    style= "font-family: calibri"   
+    text="#ffffff" 
+    bgcolor="#343434" 
+    text=#FFFFFF 
+    link=#CCCC66 
+    vlink=#FFCC66 
+    alink=#AAAA00
+    onLoad="init()"
+        >
+
+<div id="tag_header"></div>
+<h1><a href = "live2D_project_list.html">Live2D專案紀錄(v20231017)</a></h1>
+<hr><!------------------------------------------------------>
+計價方式<br>
+時薪500 x 製作時數 x 緊急倍率 - 製作心情折扣XD<br>
+倍率計算: 一個月內 : x1倍 <br>
+兩周內急件 x1.5<br>
+三天內超急件 x3<br>
+熟人/製作有興趣的怪東西通常會有折扣<br>
+<hr><!------------------------------------------------------>
+
+
+
+ <!--
+資料內容
+=SUBSTITUTE(L3,"watch?v=","embed/")  
+="{ "&
+A$2&": """&TEXT(A3,"yyyy/mm/dd")&""", "&
+B$2&": """&B3&""", "&
+C$2&": """&C3&""", "&
+D$2&": """&D3&""", "&
+E$2&": """&E3&""", "&
+F$2&": """&F3&""", "&
+G$2&": """&G3&""", "&
+H$2&": """&H3&""", "&
+I$2&": """&I3&""", "&
+J$2&": """&J3&""", "&
+K$2&": """&K3&""", "&
+L$2&": """&L3&""", "&
+" },"
+
+日期	委託人	單位	價格	備註	學習過程	製作項目	任務	合作人	建模	Demo影片	實際演出節目
+2021/9/21	洛可洛斯特	個人勢	0	初次委託	三軸半身	洛可DX	立繪+建模	忽田各	忽田各	待補充	https://www.youtube.com/watch?v=i0IUXUBa3ro
+2021/10/23	Aoi	個人勢	15000		全身+熱鍵應用	蘿莉化-Aloli	建模	馬吉	忽田各	待補充	https://www.youtube.com/watch?v=P8iXzv-wYg4
+2021/11/15	貓祭	個人勢	15000			埃及搖貓祭	建模	貓祭	忽田各	待補充	https://www.youtube.com/watch?v=uKhyMA-fQ28
+2021/12/10	貓祭	個人勢	2000		進階熱鍵	蘿莉化-蘿祭	建模	馬吉	忽田各	待補充	https://www.youtube.com/watch?v=oT--F3YLXUM
+2021/12/20	Tabasuko	Mirolive	500			食物皮-水餃+包子	立繪+建模	忽田各	忽田各	待補充	待補充
+2021/12/25	Tabasuko	Mirolive	1000			聖誕樹型態	立繪+建模	忽田各	忽田各	待補充	https://www.youtube.com/watch?v=RFEHmNo7YOw
+2021/12/25	Aoi	個人勢	2000		更衣系統+跨模型連動	聖誕衣裝	立繪+建模	忽田各	忽田各	待補充	https://www.youtube.com/watch?v=m1kyZAsniak
+2021/12/25	貓祭	個人勢	2000		更衣系統+跨模型連動	聖誕衣裝	立繪+建模	忽田各	忽田各	待補充	https://www.youtube.com/watch?v=m1kyZAsniak
+2021/12/25	洛可洛斯特	個人勢	2500		吐舌頭	洛可DX聖誕衣裝	立繪+建模	忽田各	忽田各	待補充	https://www.youtube.com/watch?v=sMWGtTy67wY
+2021/12/25	洛可洛斯特	個人勢	15000		階段性技術集大成	蘿可	立繪+建模	忽田各	忽田各	待補充	https://www.youtube.com/watch?v=sMWGtTy67wY
+2021/12/31	洛可洛斯特	個人勢	1500			老洛可	立繪+建模	忽田各	忽田各	待補充	https://www.youtube.com/watch?v=kcrDkeGzddw
+2022/1/22	社長Kuma	個人勢	0	酷東西XD	真人V皮	社長阿修羅	建模	Kuma	忽田各	待補充	https://www.youtube.com/watch?v=ljjmEIMOuKw
+2022/2/2	Tabasuko	Mirolive	500			食物皮-紅包DLC	立繪+建模	忽田各	忽田各	待補充	待補充
+2022/2/6	洛可洛斯特	個人勢	2000		模型融合	蘿可-春節衣裝+DX	立繪+建模	忽田各	忽田各	待補充	https://www.youtube.com/watch?v=eXRT-TAWjB4
+2022/3/6	梅莉帕可斯	Mirolive	1200			羊駝型態	立繪+建模	忽田各	忽田各	待補充	待補充
+2022/4/1	自己	自己	0	FanArt		蘿莉化夜花	立繪+建模	忽田各	忽田各	待補充	待補充
+2022/4/4	洛可洛斯特	個人勢	750		滑鼠應用	蘿可-畫筆配件	立繪+建模	忽田各	忽田各	待補充	https://www.youtube.com/watch?v=LSQlbC_9tcA
+2022/4/17	洛可洛斯特	個人勢	15000		呼吸變形應用	洛可JOJO化_洛太郎	立繪+建模	忽田各	忽田各	待補充	https://www.youtube.com/watch?v=LWPpOxzYWP8
+2022/6/3	Tabasuko	Mirolive	400			食物皮-粽子DLC	立繪+建模	忽田各	忽田各	待補充	https://www.youtube.com/watch?v=_sxjsxAu6HQ
+2022/6/4	貓祭	個人勢	3500	奇怪的東西XD	滑鼠應用+彈跳特效	腿祭	立繪+建模	忽田各	忽田各	待補充	https://www.youtube.com/watch?v=4LwzZSSHmHg
+2022/6/5	洛可洛斯特	個人勢	5000		第四面牆特效應用	洛可加零	建模	加零	忽田各	待補充	https://www.youtube.com/watch?v=iPPONTiOVSI
+2022/6/25	自己	自己	0	FanArt		漁夫洛可	建模	忽田各	忽田各	待補充	待補充
+2022/6/28	祈拉	Storia	15000		動作錄製應用/血條	七萬六	立繪+建模	忽田各	忽田各	待補充	https://www.youtube.com/watch?v=oc9_vqYXnYI
+2022/8/12	洛可洛斯特	個人勢	2500		血條/動畫製作	洛可壁尻台	建模	忽田各	忽田各	待補充	https://www.youtube.com/watch?v=A4Avmk-irpM
+2022/8/12	洛可洛斯特	個人勢	2500		貼圖更換技術應用	蘿可-泳裝更衣功能	建模	忽田各	忽田各	待補充	https://www.youtube.com/watch?v=9VdI4cxqqmk
+2022/9/21	洛可洛斯特	個人勢	10000		體型變形特效	洛可DX2.0	立繪+建模	忽田各	忽田各	待補充	https://www.youtube.com/watch?v=ZeVIMtOQRkU
+2022/9/30	淵夜	個人勢	13000		手臂控制技術	蘿莉化蘿淵	立繪+建模	忽田各	忽田各	待補充	https://www.youtube.com/watch?v=ct1ZZzmX6WQ
+2022/11/21	貓祭	個人勢	3000		立體感+貼圖應用	腸祭	立繪+建模	忽田各	忽田各	待補充	https://www.youtube.com/watch?v=3sa53cBBZDc
+2022/12/21	自己	自己	0	FanArt		夜花水手服V皮	立繪拆件	忽田各	車神	待補充	待補充
+2022/12/25	洛可洛斯特	個人勢	7500		集大成	蘿可衣裝金孫踏台	立繪+建模	忽田各	忽田各	待補充	https://www.youtube.com/watch?v=DWD9yGil7fQ
+2023/1/28	洛可洛斯特	個人勢	2000		紙娃娃系統	蘿可兔年兔女郎	立繪+建模	忽田各	忽田各	待補充	https://www.youtube.com/watch?v=Rk4mAX3VzMw
+2023/2/22	洛可洛斯特	個人勢	2222		非人形	貓化洛可-胖cake	建模	Jiama	忽田各	待補充	https://www.youtube.com/watch?v=XIExM-9-B98
+2023/4/1	洛可洛斯特	個人勢	3000		循環動畫應用	QB化洛可	建模	QB	忽田各	待補充	https://www.youtube.com/watch?v=9W3pqbu9loo
+2023/4/1	貓祭	個人勢	2500		跨模型互動	心祭	立繪+建模	忽田各	忽田各	待補充	https://www.youtube.com/watch?v=xpQmhgr43MI
+2023/6/15	庫洛姆	個人勢	5000	性癖	中指動畫	庫洛姆踩踏模型	立繪+建模	忽田各	忽田各	待補充	https://www.youtube.com/watch?v=wzisvigbbj8
+2023/7/30	洛可洛斯特	個人勢	2000		臉部陰影3D應用	曹可	立繪+建模	忽田各	忽田各	待補充	https://www.youtube.com/watch?v=5s_VqPf4poU
+2023/9/14	雪戀蝶	個人勢	5000			間諜垃圾袋	立繪+建模	忽田各	忽田各	待補充	待補充
+2023/9/23	洛可洛斯特	個人勢	2000		膠水應用	曹可DLC	立繪+建模	Jiama	忽田各	待補充	待補充
+2023/10/5	白湯	個人勢	5000		飛行特效/跨模型互動	Q白湯	立繪+建模	Jiama	忽田各	待補充	待補充
+2023/10/5	白湯	個人勢	5000		遮罩應用立體感製作	雞白湯	立繪+建模	忽田各	忽田各	待補充	待補充
+-->
+
+</body>
+</html>
