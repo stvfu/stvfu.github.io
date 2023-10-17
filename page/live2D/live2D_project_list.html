@@ -70,6 +70,53 @@
 </table>
 
 
+function generateTable(data) {
+    var table = document.getElementById("dataTable");
+    var header = Object.keys(data[0]);
+    var tHead = document.createElement('thead');
+    var row = document.createElement('tr');
+    for (var i = 0; i < header.length; i++) {
+        var th = document.createElement('th');
+        th.innerHTML = header[i];
+        row.appendChild(th);
+    }
+    tHead.appendChild(row);
+    table.appendChild(tHead);
+
+    var tBody = document.createElement('tbody');
+    for (var i = 0; i < data.length; i++) {
+        var row = document.createElement('tr');
+        for (var j = 0; j < header.length; j++) {
+            var td = document.createElement('td');
+
+            if ((header[j] == "實際演出節目") || (header[j] == "Demo影片")) {
+                if(data[i][header[j]].includes("youtube"))
+                {
+                    td.innerHTML = '<a href="'+ data[i][header[j]] +'" target="_blank">[影片連結]</a>';
+                    //td.innerHTML = '<iframe width="177" height="100" src="'+ data[i][header[j]] +'" frameborder="0" allow="autoplay; encrypted-media"></iframe>';
+                }
+                else
+                {
+                    td.innerHTML = data[i][header[j]];
+                }
+            } else {                
+                td.innerHTML = data[i][header[j]];
+            }
+
+            row.appendChild(td);
+        }
+        tBody.appendChild(row);
+    }
+    table.appendChild(tBody);
+}
+
+generateTable(data);
+var sortDirection = {
+    0: true, // 'true'表示正序，'false'表示逆序
+    1: true,
+    3: true,
+};
+                
 function sortTable(n, type) {
     var table, rows, switching, i, x, y, shouldSwitch;
     table = document.getElementById("dataTable");
