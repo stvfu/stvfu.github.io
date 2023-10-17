@@ -57,8 +57,28 @@
 三天內超急件 x3<br>
 熟人/製作有興趣的怪東西通常會有折扣<br>
 <hr><!------------------------------------------------------>
+<br>
+以下為專案列表<br>
+<button id="sortDate" onclick="sortTable(0, 'date'); toggleButtonText('sortDate', '日期排序(舊->新)', '日期排序(新->舊)')">日期排序(舊->新)</button>
+<button id="sortText" onclick="sortTable(1, 'text'); toggleButtonText('sortText', '委託人排序(A->Z)', '委託人排序(Z->A)')">委託人排序(A->Z)</button>
+<button id="sortNum" onclick="sortTable(3, 'number'); toggleButtonText('sortNum', '價格排序(低->高)', '價格排序(高->低)')">價格排序(低->高)</button>
 
 
+
+
+<table id="dataTable" border="1" cellpadding="1" cellspacing="1">
+</table>
+
+
+
+function toggleButtonText(buttonId, defaultText, toggledText) {
+    var button = document.getElementById(buttonId);
+    if (button.textContent == defaultText) {
+        button.textContent = toggledText;
+    } else {
+        button.textContent = defaultText;
+    }
+}
 
  <!--
 資料內容
