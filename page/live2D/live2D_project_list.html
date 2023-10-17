@@ -62,8 +62,7 @@
 <button id="sortDate" onclick="sortTable(0, 'date'); toggleButtonText('sortDate', '日期排序(舊->新)', '日期排序(新->舊)')">日期排序(舊->新)</button>
 <button id="sortText" onclick="sortTable(1, 'text'); toggleButtonText('sortText', '委託人排序(A->Z)', '委託人排序(Z->A)')">委託人排序(A->Z)</button>
 <button id="sortNum" onclick="sortTable(3, 'number'); toggleButtonText('sortNum', '價格排序(低->高)', '價格排序(高->低)')">價格排序(低->高)</button>
-
-
+<button id="sortNum" onclick="sortTable(6, 'text'); toggleButtonText('sortNum', '項目(A->Z)', '項目(Z->A)')">項目(A->Z)</button>
 
 
 <table id="dataTable" border="1" cellpadding="1" cellspacing="1">
@@ -79,8 +78,8 @@ var data = [
 { 日期: "2021/12/25", 委託人: "Tabasuko", 單位: "Mirolive", 價格: "1000", 備註: "", 學習過程: "", 製作項目: "聖誕樹型態", 任務: "立繪+建模", 合作人: "忽田各", 建模: "忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=RFEHmNo7YOw",  },
 { 日期: "2021/12/25", 委託人: "Aoi", 單位: "個人勢", 價格: "2000", 備註: "", 學習過程: "更衣系統+跨模型連動", 製作項目: "聖誕衣裝", 任務: "立繪+建模", 合作人: "忽田各", 建模: "忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=m1kyZAsniak",  },
 { 日期: "2021/12/25", 委託人: "貓祭", 單位: "個人勢", 價格: "2000", 備註: "", 學習過程: "更衣系統+跨模型連動", 製作項目: "聖誕衣裝", 任務: "立繪+建模", 合作人: "忽田各", 建模: "忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=m1kyZAsniak",  },
-{ 日期: "2021/12/25", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "2500", 備註: "", 學習過程: "吐舌頭", 製作項目: "洛可DX聖誕衣裝", 任務: "立繪+建模", 合作人: "忽田各", 建模: "忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=sMWGtTy67wY",  },
-{ 日期: "2021/12/25", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "15000", 備註: "", 學習過程: "階段性技術集大成", 製作項目: "蘿可", 任務: "立繪+建模", 合作人: "忽田各", 建模: "忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=sMWGtTy67wY",  },
+{ 日期: "2021/12/25", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "2000", 備註: "", 學習過程: "吐舌頭", 製作項目: "洛可DX聖誕衣裝", 任務: "立繪+建模", 合作人: "忽田各", 建模: "忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=sMWGtTy67wY",  },
+{ 日期: "2021/12/25", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "15500", 備註: "", 學習過程: "階段性技術集大成", 製作項目: "蘿可", 任務: "立繪+建模", 合作人: "忽田各", 建模: "忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=sMWGtTy67wY",  },
 { 日期: "2021/12/31", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "1500", 備註: "", 學習過程: "", 製作項目: "老洛可", 任務: "立繪+建模", 合作人: "忽田各", 建模: "忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=kcrDkeGzddw",  },
 { 日期: "2022/01/22", 委託人: "社長Kuma", 單位: "個人勢", 價格: "0", 備註: "酷東西XD", 學習過程: "真人V皮", 製作項目: "社長阿修羅", 任務: "建模", 合作人: "Kuma", 建模: "忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=ljjmEIMOuKw",  },
 { 日期: "2022/02/02", 委託人: "Tabasuko", 單位: "Mirolive", 價格: "500", 備註: "", 學習過程: "", 製作項目: "食物皮-紅包DLC", 任務: "立繪+建模", 合作人: "忽田各", 建模: "忽田各", Demo影片: "待補充", 實際演出節目: "待補充",  },
@@ -138,6 +137,7 @@ var sortDirection = {
     0: true, // 'true'表示正序，'false'表示逆序
     1: true,
     3: true,
+    6: true,
 };
                 
 function sortTable(n, type) {
