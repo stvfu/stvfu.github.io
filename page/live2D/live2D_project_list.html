@@ -1,11 +1,9 @@
+
 <!DOCTYPE html>
 <html>
 <head>
-        <title>Live2D專案紀錄(v20231017)</title>
+        <title>Live2D專案紀錄(v20231018)</title>
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-        <script type="text/JavaScript" src="../flot.js"></script>
-        <script  type="text/JavaScript" src="../foldheader.js"></script>
         <style>
             #foldheader{cursor:pointer;cursor:hand ; color:#7777FF;font-weight:bold ;
             list-style-image:url(fold.gif)}
@@ -14,17 +12,6 @@
             #text {font-family:"微軟正黑體";font-size:16px;}
         </style>
         <style>
-        .post .codeblock {
-        display: block; /* fixes a strange ie margin bug */
-        font-family: Courier New;
-        font-size: 10pt;
-        overflow:auto;
-        background: #f0f0f0 url(data:image/gif;base64,iVBORw0KGgoAAAANSUhEUgAAAAsAAASwCAYAAAAt7rCDAAAABHNCSVQICAgIfAhkiAAAAQJJREFUeJzt0kEKhDAMBdA4zFmbM+W0upqFOhXrDILwsimFR5pfMrXW5jhZr7PwRlxVX8//jNHrGhExjXzdu9c5IiIz+7iqVmB7Hwp4OMa2nhhwN/PRGEMBh3Zjt6KfpzPztxW9MSAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzAMwzB8HS+J9kUTvzEDMwAAAABJRU5ErkJggg==) left top repeat-y;
-        border: 1px solid #ccc;
-        padding: 10px 10px 10px 21px;
-        max-height:1000px;
-        line-height: 1.2em;
-        }
         table {
             width: 100%;
             border-collapse: collapse;
@@ -34,10 +21,24 @@
             text-align: left;
             border-bottom: 1px solid #ddd;
         }
-        #sortDate { font-size: 2em; }
-        #sortText1 { font-size: 2em; }
-        #sortText2 { font-size: 2em; }
-        #sortNum { font-size: 2em; }
+        //#sortDate { font-size: 2em; }
+        //#sortText1 { font-size: 2em; }
+        //#sortText2 { font-size: 2em; }
+        //#sortNum { font-size: 2em; }
+        
+        #stickyHeader {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            background-color: #343434; 
+            z-index: 1000;
+            padding: 10px 0;
+            box-shadow: 0px 2px 5px rgba(0,0,0,0.3); // 加入陰影效果
+        }
+
+        #tableContainer {
+            padding-top: 300px; /* 這個值可能需要根據 #stickyHeader 的高度進行調整 */
+        }
     </style>
 </head>
 <body
@@ -51,70 +52,101 @@
     onLoad="init()"
         >
 
-<div id="tag_header"></div>
-<h1><a href = "live2D_project_list.html">Live2D專案紀錄(v20231017)</a></h1>
-<hr><!------------------------------------------------------>
-計價方式<br>
-時薪500 x 製作時數 x 緊急倍率 - 製作心情折扣XD<br>
-倍率計算: 一個月內 : x1倍 <br>
-兩周內急件 x1.5<br>
-三天內超急件 x3<br>
-熟人/製作有興趣的怪東西通常會有折扣<br>
-<hr><!------------------------------------------------------>
+    <div id="stickyHeader">
+        <h1><a href = "live2D_project_list.html">Live2D專案紀錄(v20231017)</a></h1>
+        <hr><!------------------------------------------------------>
+        計價方式<br>
+        時薪500 x 製作時數 x 緊急倍率 - 製作心情折扣XD<br>
+        倍率計算: 一個月內:(x1)倍, 兩周內急件 (x1.5), 三天內超急件 (x3)<br>
+        熟人/製作有興趣的怪東西通常會有折扣<br>
+        <hr><!------------------------------------------------------>
+        排序按鈕:<br>
+        <button id="sortDate" onclick="sortTable(0, 'date'); toggleButtonText('sortDate', '日期排序(舊->新)', '日期排序(新->舊)')">日期排序(舊->新)</button>
+        <button id="sortText1" onclick="sortTable(1, 'text'); toggleButtonText('sortText1', '委託人排序(A->Z)', '委託人排序(Z->A)')">委託人排序(A->Z)</button>
+        <button id="sortNum" onclick="sortTable(3, 'number'); toggleButtonText('sortNum', '價格排序(低->高)', '價格排序(高->低)')">價格排序(低->高)</button>
+        <button id="sortText2" onclick="sortTable(6, 'text'); toggleButtonText('sortText2', '項目(A->Z)', '項目(Z->A)')">項目(A->Z)</button>
+        <hr><!------------------------------------------------------>
+        篩選欄位:
+        <select id="filterColumn">
+            <option value="0">日期</option>
+            <option value="1">委託人</option>
+            <option value="3">價格</option>
+        </select>
+        輸入關鍵字: <input type="text" id="filterValue" />
+        <button onclick="filterTable()">篩選</button>
+        <br>以下為專案列表
+        <br>
+    </div>
 <br>
-以下為專案列表<br>
-<button id="sortDate" onclick="sortTable(0, 'date'); toggleButtonText('sortDate', '日期排序(舊->新)', '日期排序(新->舊)')">日期排序(舊->新)</button>
-<button id="sortText1" onclick="sortTable(1, 'text'); toggleButtonText('sortText1', '委託人排序(A->Z)', '委託人排序(Z->A)')">委託人排序(A->Z)</button>
-<button id="sortNum" onclick="sortTable(3, 'number'); toggleButtonText('sortNum', '價格排序(低->高)', '價格排序(高->低)')">價格排序(低->高)</button>
-<button id="sortText2" onclick="sortTable(6, 'text'); toggleButtonText('sortText2', '項目(A->Z)', '項目(Z->A)')">項目(A->Z)</button>
 
+    <div id="tableContainer">
+        <table id="dataTable" border="1" cellpadding="1" cellspacing="1">
+        </table>
+    </div>
 
-<table id="dataTable" border="1" cellpadding="1" cellspacing="1">
-</table>
+<hr><!------------------------------------------------------>
 
 <script>
 var data = [
-// 2021
-{ 日期: "2021/09/21", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "0", 備註: "初次委託", 學習過程: "三軸半身", 製作項目: "洛可DX", 任務: "立繪+建模", 合作人: "忽田各", 建模: "忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=i0IUXUBa3ro",  },
-{ 日期: "2021/10/23", 委託人: "Aoi", 單位: "個人勢", 價格: "15000", 備註: "", 學習過程: "全身+熱鍵應用", 製作項目: "蘿莉化-Aloli", 任務: "建模", 合作人: "馬吉", 建模: "忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=P8iXzv-wYg4",  },
-{ 日期: "2021/11/15", 委託人: "貓祭", 單位: "個人勢", 價格: "2000", 備註: "", 學習過程: "", 製作項目: "埃及搖貓祭", 任務: "建模", 合作人: "貓祭", 建模: "忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=uKhyMA-fQ28",  },
-{ 日期: "2021/12/10", 委託人: "貓祭", 單位: "個人勢", 價格: "15000", 備註: "", 學習過程: "進階熱鍵", 製作項目: "蘿莉化-蘿祭", 任務: "建模", 合作人: "馬吉", 建模: "忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=oT--F3YLXUM",  },
-{ 日期: "2021/12/20", 委託人: "Tabasuko", 單位: "Mirolive", 價格: "500", 備註: "", 學習過程: "", 製作項目: "食物皮-水餃+包子", 任務: "立繪+建模", 合作人: "忽田各", 建模: "忽田各", Demo影片: "待補充", 實際演出節目: "待補充",  },
-{ 日期: "2021/12/25", 委託人: "Tabasuko", 單位: "Mirolive", 價格: "1000", 備註: "", 學習過程: "", 製作項目: "聖誕樹型態", 任務: "立繪+建模", 合作人: "忽田各", 建模: "忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=RFEHmNo7YOw",  },
-{ 日期: "2021/12/25", 委託人: "Aoi", 單位: "個人勢", 價格: "2000", 備註: "", 學習過程: "更衣系統+跨模型連動", 製作項目: "聖誕衣裝", 任務: "立繪+建模", 合作人: "忽田各", 建模: "忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=m1kyZAsniak",  },
-{ 日期: "2021/12/25", 委託人: "貓祭", 單位: "個人勢", 價格: "2000", 備註: "", 學習過程: "更衣系統+跨模型連動", 製作項目: "聖誕衣裝", 任務: "立繪+建模", 合作人: "忽田各", 建模: "忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=m1kyZAsniak",  },
-{ 日期: "2021/12/25", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "2000", 備註: "", 學習過程: "吐舌頭", 製作項目: "洛可DX聖誕衣裝", 任務: "立繪+建模", 合作人: "忽田各", 建模: "忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=sMWGtTy67wY",  },
-{ 日期: "2021/12/25", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "15500", 備註: "", 學習過程: "階段性技術集大成", 製作項目: "蘿可", 任務: "立繪+建模", 合作人: "忽田各", 建模: "忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=sMWGtTy67wY",  },
-{ 日期: "2021/12/31", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "1500", 備註: "", 學習過程: "", 製作項目: "老洛可", 任務: "立繪+建模", 合作人: "忽田各", 建模: "忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=kcrDkeGzddw",  },
-//2022
-{ 日期: "2022/01/22", 委託人: "社長Kuma", 單位: "個人勢", 價格: "0", 備註: "酷東西XD", 學習過程: "真人V皮", 製作項目: "社長阿修羅", 任務: "建模", 合作人: "Kuma", 建模: "忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=ljjmEIMOuKw",  },
-{ 日期: "2022/02/02", 委託人: "Tabasuko", 單位: "Mirolive", 價格: "500", 備註: "", 學習過程: "", 製作項目: "食物皮-紅包DLC", 任務: "立繪+建模", 合作人: "忽田各", 建模: "忽田各", Demo影片: "待補充", 實際演出節目: "待補充",  },
-{ 日期: "2022/02/06", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "2000", 備註: "", 學習過程: "模型融合", 製作項目: "蘿可-春節衣裝+DX", 任務: "立繪+建模", 合作人: "忽田各", 建模: "忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=eXRT-TAWjB4",  },
-{ 日期: "2022/03/06", 委託人: "梅莉帕可斯", 單位: "Mirolive", 價格: "1200", 備註: "", 學習過程: "", 製作項目: "羊駝型態", 任務: "立繪+建模", 合作人: "忽田各", 建模: "忽田各", Demo影片: "待補充", 實際演出節目: "待補充",  },
-{ 日期: "2022/04/01", 委託人: "自己", 單位: "自己", 價格: "0", 備註: "FanArt", 學習過程: "", 製作項目: "蘿莉化夜花", 任務: "立繪+建模", 合作人: "忽田各", 建模: "忽田各", Demo影片: "待補充", 實際演出節目: "待補充",  },
-{ 日期: "2022/04/04", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "750", 備註: "", 學習過程: "滑鼠應用", 製作項目: "蘿可-畫筆配件", 任務: "立繪+建模", 合作人: "忽田各", 建模: "忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=LSQlbC_9tcA",  },
-{ 日期: "2022/04/17", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "15000", 備註: "", 學習過程: "呼吸變形應用", 製作項目: "洛可JOJO化_洛太郎", 任務: "立繪+建模", 合作人: "忽田各", 建模: "忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=LWPpOxzYWP8",  },
-{ 日期: "2022/06/03", 委託人: "Tabasuko", 單位: "Mirolive", 價格: "400", 備註: "", 學習過程: "", 製作項目: "食物皮-粽子DLC", 任務: "立繪+建模", 合作人: "忽田各", 建模: "忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=_sxjsxAu6HQ",  },
-{ 日期: "2022/06/04", 委託人: "貓祭", 單位: "個人勢", 價格: "3500", 備註: "奇怪的皮XD", 學習過程: "滑鼠應用+彈跳", 製作項目: "腿祭", 任務: "立繪+建模", 合作人: "忽田各", 建模: "忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=4LwzZSSHmHg",  },
-{ 日期: "2022/06/05", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "5000", 備註: "", 學習過程: "第四面牆特效", 製作項目: "洛可加零", 任務: "建模", 合作人: "加零", 建模: "忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=iPPONTiOVSI",  },
-{ 日期: "2022/06/25", 委託人: "自己", 單位: "自己", 價格: "0", 備註: "FanArt", 學習過程: "", 製作項目: "漁夫洛可", 任務: "立繪+建模", 合作人: "忽田各", 建模: "忽田各", Demo影片: "待補充", 實際演出節目: "待補充",  },
-{ 日期: "2022/06/08", 委託人: "祈拉", 單位: "Storia", 價格: "15000", 備註: "", 學習過程: "動作錄製應用/血條", 製作項目: "七萬六", 任務: "立繪+建模", 合作人: "忽田各", 建模: "忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=oc9_vqYXnYI",  },
-{ 日期: "2022/08/12", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "2500", 備註: "", 學習過程: "動畫製作", 製作項目: "洛可壁尻台", 任務: "立繪+建模", 合作人: "忽田各", 建模: "忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=A4Avmk-irpM",  },
-{ 日期: "2022/08/27", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "2500", 備註: "", 學習過程: "貼圖更換技術", 製作項目: "蘿可-泳裝更衣功能", 任務: "立繪+建模", 合作人: "忽田各", 建模: "忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=9VdI4cxqqmk",  },
-{ 日期: "2022/09/21", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "10000", 備註: "", 學習過程: "體型變形特效", 製作項目: "洛可DX2.0", 任務: "立繪+建模", 合作人: "忽田各", 建模: "忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=ZeVIMtOQRkU",  },
-{ 日期: "2022/09/30", 委託人: "淵夜", 單位: "個人勢", 價格: "13000", 備註: "", 學習過程: "手臂控制技術", 製作項目: "蘿莉化淵夜", 任務: "立繪+建模", 合作人: "忽田各", 建模: "忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=ct1ZZzmX6WQ",  },
-{ 日期: "2022/11/21", 委託人: "貓祭", 單位: "個人勢", 價格: "3000", 備註: "", 學習過程: "立體感+貼圖應用", 製作項目: "腸祭", 任務: "立繪+建模", 合作人: "忽田各", 建模: "忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=3sa53cBBZDc",  },
-{ 日期: "2022/12/21", 委託人: "自己", 單位: "自己", 價格: "0", 備註: "FanArt", 學習過程: "", 製作項目: "夜花水手服V皮", 任務: "立繪", 合作人: "忽田各", 建模: "車神", Demo影片: "待補充", 實際演出節目: "待補充",  },
-{ 日期: "2022/12/25", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "7500", 備註: "", 學習過程: "集大成", 製作項目: "蘿可-新衣裝金孫踏台", 任務: "立繪+建模", 合作人: "忽田各", 建模: "忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=DWD9yGil7fQ",  },
-//2023
-{ 日期: "2023/01/28", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "2000", 備註: "", 學習過程: "紙娃娃系統", 製作項目: "蘿可-兔年兔女郎", 任務: "立繪+建模", 合作人: "忽田各", 建模: "忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=Rk4mAX3VzMw",  },
-{ 日期: "2023/02/22", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "2222", 備註: "", 學習過程: "非人形", 製作項目: "洛可貓化-胖Cake", 任務: "建模", 合作人: "忽田各", 建模: "忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=XIExM-9-B98",  },
-{ 日期: "2023/04/01", 委託人: "貓祭", 單位: "個人勢", 價格: "2500", 備註: "", 學習過程: "跨模型互動", 製作項目: "心祭", 任務: "立繪+建模", 合作人: "忽田各", 建模: "忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=9W3pqbu9loo",  },
-{ 日期: "2023/04/01", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "3000", 備註: "", 學習過程: "循環動畫應用", 製作項目: "洛可QB化", 任務: "建模", 合作人: "QB", 建模: "忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=xpQmhgr43MI",  },
-{ 日期: "2023/06/15", 委託人: "庫洛姆", 單位: "個人勢", 價格: "5000", 備註: "性癖", 學習過程: "中指動畫", 製作項目: "庫洛姆踩踏模型", 任務: "立繪+建模", 合作人: "忽田各", 建模: "忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=wzisvigbbj8",  },
-{ 日期: "2023/07/30", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "2000", 備註: "", 學習過程: "臉部陰影3D應用", 製作項目: "曹可", 任務: "立繪+建模", 合作人: "忽田各", 建模: "忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=5s_VqPf4poU",  },
-        
+{ 日期: "2021/09/21", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "0", 製作項目: "洛可DX", 備註: "初次委託<br>三軸半身", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=i0IUXUBa3ro",  },
+{ 日期: "2021/10/23", 委託人: "Aoi", 單位: "個人勢", 價格: "15000", 製作項目: "蘿莉化-Aloli", 備註: "全身+熱鍵應用", 任務: "建模<br>繪師:馬吉<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=P8iXzv-wYg4",  },
+{ 日期: "2021/11/15", 委託人: "貓祭", 單位: "個人勢", 價格: "2000", 製作項目: "埃及搖貓祭", 備註: "", 任務: "建模<br>繪師:貓祭<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=uKhyMA-fQ28",  },
+{ 日期: "2021/12/10", 委託人: "貓祭", 單位: "個人勢", 價格: "15000", 製作項目: "蘿莉化-蘿祭", 備註: "進階熱鍵", 任務: "建模<br>繪師:馬吉<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=oT--F3YLXUM",  },
+{ 日期: "2021/12/20", 委託人: "Tabasuko", 單位: "Mirolive", 價格: "500", 製作項目: "食物皮-水餃+包子", 備註: "", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "待補充",  },
+{ 日期: "2021/12/25", 委託人: "Tabasuko", 單位: "Mirolive", 價格: "1000", 製作項目: "聖誕樹型態", 備註: "", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=RFEHmNo7YOw",  },
+{ 日期: "2021/12/25", 委託人: "Aoi", 單位: "個人勢", 價格: "2000", 製作項目: "聖誕衣裝", 備註: "更衣系統+跨模型連動", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=m1kyZAsniak",  },
+{ 日期: "2021/12/25", 委託人: "貓祭", 單位: "個人勢", 價格: "2000", 製作項目: "聖誕衣裝", 備註: "更衣系統+跨模型連動", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=m1kyZAsniak",  },
+{ 日期: "2021/12/25", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "2500", 製作項目: "洛可DX聖誕衣裝", 備註: "吐舌頭", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=sMWGtTy67wY",  },
+{ 日期: "2021/12/25", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "15000", 製作項目: "蘿可", 備註: "階段性技術集大成", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=sMWGtTy67wY",  },
+{ 日期: "2021/12/31", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "1500", 製作項目: "老洛可", 備註: "", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=kcrDkeGzddw",  },
+{ 日期: "2022/01/22", 委託人: "社長Kuma", 單位: "個人勢", 價格: "0", 製作項目: "社長阿修羅", 備註: "酷東西XD<br>真人V皮", 任務: "建模<br>繪師:Kuma<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=ljjmEIMOuKw",  },
+{ 日期: "2022/02/02", 委託人: "Tabasuko", 單位: "Mirolive", 價格: "500", 製作項目: "食物皮-紅包DLC", 備註: "", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "待補充",  },
+{ 日期: "2022/02/06", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "2000", 製作項目: "蘿可-春節衣裝+DX", 備註: "模型融合", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=eXRT-TAWjB4",  },
+{ 日期: "2022/03/06", 委託人: "梅莉帕可斯", 單位: "Mirolive", 價格: "1200", 製作項目: "羊駝型態", 備註: "", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "待補充",  },
+{ 日期: "2022/04/01", 委託人: "自己", 單位: "自己", 價格: "0", 製作項目: "蘿莉化夜花", 備註: "FanArt<br>", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "待補充",  },
+{ 日期: "2022/04/04", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "750", 製作項目: "蘿可-畫筆配件", 備註: "滑鼠應用", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=LSQlbC_9tcA",  },
+{ 日期: "2022/04/17", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "15000", 製作項目: "洛可JOJO化_洛太郎", 備註: "呼吸變形應用", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=LWPpOxzYWP8",  },
+{ 日期: "2022/06/03", 委託人: "Tabasuko", 單位: "Mirolive", 價格: "400", 製作項目: "食物皮-粽子DLC", 備註: "", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=_sxjsxAu6HQ",  },
+{ 日期: "2022/06/04", 委託人: "貓祭", 單位: "個人勢", 價格: "3500", 製作項目: "腿祭", 備註: "奇怪的東西XD<br>滑鼠應用+彈跳特效", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=4LwzZSSHmHg",  },
+{ 日期: "2022/06/05", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "5000", 製作項目: "洛可加零", 備註: "第四面牆特效應用", 任務: "建模<br>繪師:加零<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=iPPONTiOVSI",  },
+{ 日期: "2022/06/25", 委託人: "自己", 單位: "自己", 價格: "0", 製作項目: "漁夫洛可", 備註: "FanArt<br>", 任務: "建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "待補充",  },
+{ 日期: "2022/06/28", 委託人: "祈拉", 單位: "Storia", 價格: "15000", 製作項目: "七萬六", 備註: "動作錄製應用/血條", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=oc9_vqYXnYI",  },
+{ 日期: "2022/08/12", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "2500", 製作項目: "洛可壁尻台", 備註: "血條/動畫製作", 任務: "建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=A4Avmk-irpM",  },
+{ 日期: "2022/08/12", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "2500", 製作項目: "蘿可-泳裝更衣功能", 備註: "貼圖更換技術應用", 任務: "建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=9VdI4cxqqmk",  },
+{ 日期: "2022/09/21", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "10000", 製作項目: "洛可DX2.0", 備註: "體型變形特效", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=ZeVIMtOQRkU",  },
+{ 日期: "2022/09/30", 委託人: "淵夜", 單位: "個人勢", 價格: "13000", 製作項目: "蘿莉化蘿淵", 備註: "手臂控制技術", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=ct1ZZzmX6WQ",  },
+{ 日期: "2022/11/21", 委託人: "貓祭", 單位: "個人勢", 價格: "3000", 製作項目: "腸祭", 備註: "立體感+貼圖應用", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=3sa53cBBZDc",  },
+{ 日期: "2022/12/21", 委託人: "自己", 單位: "自己", 價格: "0", 製作項目: "夜花水手服V皮", 備註: "FanArt<br>", 任務: "立繪拆件<br>繪師:忽田各<br>建模:車神", Demo影片: "待補充", 實際演出節目: "待補充",  },
+{ 日期: "2022/12/25", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "7500", 製作項目: "蘿可衣裝金孫踏台", 備註: "集大成", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=DWD9yGil7fQ",  },
+{ 日期: "2023/01/28", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "2000", 製作項目: "蘿可兔年兔女郎", 備註: "紙娃娃系統", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=Rk4mAX3VzMw",  },
+{ 日期: "2023/02/22", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "2222", 製作項目: "貓化洛可-胖cake", 備註: "非人形", 任務: "建模<br>繪師:Jiama<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=XIExM-9-B98",  },
+{ 日期: "2023/04/01", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "3000", 製作項目: "QB化洛可", 備註: "循環動畫應用", 任務: "建模<br>繪師:QB<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=9W3pqbu9loo",  },
+{ 日期: "2023/04/01", 委託人: "貓祭", 單位: "個人勢", 價格: "2500", 製作項目: "心祭", 備註: "跨模型互動", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=xpQmhgr43MI",  },
+{ 日期: "2023/06/15", 委託人: "庫洛姆", 單位: "個人勢", 價格: "5000", 製作項目: "庫洛姆踩踏模型", 備註: "性癖<br>中指動畫", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=wzisvigbbj8",  },
+{ 日期: "2023/07/30", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "2000", 製作項目: "曹可", 備註: "臉部陰影3D應用", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=5s_VqPf4poU",  },
+{ 日期: "2023/09/23", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "2000", 製作項目: "曹可DLC", 備註: "膠水應用", 任務: "立繪+建模<br>繪師:Jiama<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "待補充",  },
+
 ];
+
+function filterTable() {
+    var filterColumn = parseInt(document.getElementById("filterColumn").value);
+    var filterValue = document.getElementById("filterValue").value.toLowerCase();
+    var table = document.getElementById("dataTable");
+    var rows = table.getElementsByTagName("tr");
+
+    // 從第二行開始過濾，因為第一行是標題
+    for (var i = 1; i < rows.length; i++) {
+        var cell = rows[i].getElementsByTagName("TD")[filterColumn];
+        if (cell) {
+            var cellValue = cell.innerText || cell.textContent;
+            if (cellValue.toLowerCase().indexOf(filterValue) > -1) {
+                rows[i].style.display = "";  // 顯示
+            } else {
+                rows[i].style.display = "none";  // 隱藏
+            }
+        }
+    }
+}
 
 function generateTable(data) {
     var table = document.getElementById("dataTable");
@@ -204,65 +236,5 @@ function toggleButtonText(buttonId, defaultText, toggledText) {
     }
 }
 </script>
- <!--
-資料內容
-=SUBSTITUTE(L3,"watch?v=","embed/")  
-="{ "&
-A$2&": """&TEXT(A3,"yyyy/mm/dd")&""", "&
-B$2&": """&B3&""", "&
-C$2&": """&C3&""", "&
-D$2&": """&D3&""", "&
-E$2&": """&E3&""", "&
-F$2&": """&F3&""", "&
-G$2&": """&G3&""", "&
-H$2&": """&H3&""", "&
-I$2&": """&I3&""", "&
-J$2&": """&J3&""", "&
-K$2&": """&K3&""", "&
-L$2&": """&L3&""", "&
-" },"
-
-日期	委託人	單位	價格	備註	學習過程	製作項目	任務	合作人	建模	Demo影片	實際演出節目
-2021/9/21	洛可洛斯特	個人勢	0	初次委託	三軸半身	洛可DX	立繪+建模	忽田各	忽田各	待補充	https://www.youtube.com/watch?v=i0IUXUBa3ro
-2021/10/23	Aoi	個人勢	15000		全身+熱鍵應用	蘿莉化-Aloli	建模	馬吉	忽田各	待補充	https://www.youtube.com/watch?v=P8iXzv-wYg4
-2021/11/15	貓祭	個人勢	15000			埃及搖貓祭	建模	貓祭	忽田各	待補充	https://www.youtube.com/watch?v=uKhyMA-fQ28
-2021/12/10	貓祭	個人勢	2000		進階熱鍵	蘿莉化-蘿祭	建模	馬吉	忽田各	待補充	https://www.youtube.com/watch?v=oT--F3YLXUM
-2021/12/20	Tabasuko	Mirolive	500			食物皮-水餃+包子	立繪+建模	忽田各	忽田各	待補充	待補充
-2021/12/25	Tabasuko	Mirolive	1000			聖誕樹型態	立繪+建模	忽田各	忽田各	待補充	https://www.youtube.com/watch?v=RFEHmNo7YOw
-2021/12/25	Aoi	個人勢	2000		更衣系統+跨模型連動	聖誕衣裝	立繪+建模	忽田各	忽田各	待補充	https://www.youtube.com/watch?v=m1kyZAsniak
-2021/12/25	貓祭	個人勢	2000		更衣系統+跨模型連動	聖誕衣裝	立繪+建模	忽田各	忽田各	待補充	https://www.youtube.com/watch?v=m1kyZAsniak
-2021/12/25	洛可洛斯特	個人勢	2500		吐舌頭	洛可DX聖誕衣裝	立繪+建模	忽田各	忽田各	待補充	https://www.youtube.com/watch?v=sMWGtTy67wY
-2021/12/25	洛可洛斯特	個人勢	15000		階段性技術集大成	蘿可	立繪+建模	忽田各	忽田各	待補充	https://www.youtube.com/watch?v=sMWGtTy67wY
-2021/12/31	洛可洛斯特	個人勢	1500			老洛可	立繪+建模	忽田各	忽田各	待補充	https://www.youtube.com/watch?v=kcrDkeGzddw
-2022/1/22	社長Kuma	個人勢	0	酷東西XD	真人V皮	社長阿修羅	建模	Kuma	忽田各	待補充	https://www.youtube.com/watch?v=ljjmEIMOuKw
-2022/2/2	Tabasuko	Mirolive	500			食物皮-紅包DLC	立繪+建模	忽田各	忽田各	待補充	待補充
-2022/2/6	洛可洛斯特	個人勢	2000		模型融合	蘿可-春節衣裝+DX	立繪+建模	忽田各	忽田各	待補充	https://www.youtube.com/watch?v=eXRT-TAWjB4
-2022/3/6	梅莉帕可斯	Mirolive	1200			羊駝型態	立繪+建模	忽田各	忽田各	待補充	待補充
-2022/4/1	自己	自己	0	FanArt		蘿莉化夜花	立繪+建模	忽田各	忽田各	待補充	待補充
-2022/4/4	洛可洛斯特	個人勢	750		滑鼠應用	蘿可-畫筆配件	立繪+建模	忽田各	忽田各	待補充	https://www.youtube.com/watch?v=LSQlbC_9tcA
-2022/4/17	洛可洛斯特	個人勢	15000		呼吸變形應用	洛可JOJO化_洛太郎	立繪+建模	忽田各	忽田各	待補充	https://www.youtube.com/watch?v=LWPpOxzYWP8
-2022/6/3	Tabasuko	Mirolive	400			食物皮-粽子DLC	立繪+建模	忽田各	忽田各	待補充	https://www.youtube.com/watch?v=_sxjsxAu6HQ
-2022/6/4	貓祭	個人勢	3500	奇怪的東西XD	滑鼠應用+彈跳特效	腿祭	立繪+建模	忽田各	忽田各	待補充	https://www.youtube.com/watch?v=4LwzZSSHmHg
-2022/6/5	洛可洛斯特	個人勢	5000		第四面牆特效應用	洛可加零	建模	加零	忽田各	待補充	https://www.youtube.com/watch?v=iPPONTiOVSI
-2022/6/25	自己	自己	0	FanArt		漁夫洛可	建模	忽田各	忽田各	待補充	待補充
-2022/6/28	祈拉	Storia	15000		動作錄製應用/血條	七萬六	立繪+建模	忽田各	忽田各	待補充	https://www.youtube.com/watch?v=oc9_vqYXnYI
-2022/8/12	洛可洛斯特	個人勢	2500		血條/動畫製作	洛可壁尻台	建模	忽田各	忽田各	待補充	https://www.youtube.com/watch?v=A4Avmk-irpM
-2022/8/12	洛可洛斯特	個人勢	2500		貼圖更換技術應用	蘿可-泳裝更衣功能	建模	忽田各	忽田各	待補充	https://www.youtube.com/watch?v=9VdI4cxqqmk
-2022/9/21	洛可洛斯特	個人勢	10000		體型變形特效	洛可DX2.0	立繪+建模	忽田各	忽田各	待補充	https://www.youtube.com/watch?v=ZeVIMtOQRkU
-2022/9/30	淵夜	個人勢	13000		手臂控制技術	蘿莉化蘿淵	立繪+建模	忽田各	忽田各	待補充	https://www.youtube.com/watch?v=ct1ZZzmX6WQ
-2022/11/21	貓祭	個人勢	3000		立體感+貼圖應用	腸祭	立繪+建模	忽田各	忽田各	待補充	https://www.youtube.com/watch?v=3sa53cBBZDc
-2022/12/21	自己	自己	0	FanArt		夜花水手服V皮	立繪拆件	忽田各	車神	待補充	待補充
-2022/12/25	洛可洛斯特	個人勢	7500		集大成	蘿可衣裝金孫踏台	立繪+建模	忽田各	忽田各	待補充	https://www.youtube.com/watch?v=DWD9yGil7fQ
-        
-2023/1/28	洛可洛斯特	個人勢	2000		紙娃娃系統	蘿可兔年兔女郎	立繪+建模	忽田各	忽田各	待補充	https://www.youtube.com/watch?v=Rk4mAX3VzMw
-2023/2/22	洛可洛斯特	個人勢	2222		非人形	貓化洛可-胖cake	建模	Jiama	忽田各	待補充	https://www.youtube.com/watch?v=XIExM-9-B98
-2023/4/1	洛可洛斯特	個人勢	3000		循環動畫應用	QB化洛可	建模	QB	忽田各	待補充	https://www.youtube.com/watch?v=9W3pqbu9loo
-2023/4/1	貓祭	個人勢	2500		跨模型互動	心祭	立繪+建模	忽田各	忽田各	待補充	https://www.youtube.com/watch?v=xpQmhgr43MI
-2023/6/15	庫洛姆	個人勢	5000	性癖	中指動畫	庫洛姆踩踏模型	立繪+建模	忽田各	忽田各	待補充	https://www.youtube.com/watch?v=wzisvigbbj8
-2023/7/30	洛可洛斯特	個人勢	2000		臉部陰影3D應用	曹可	立繪+建模	忽田各	忽田各	待補充	https://www.youtube.com/watch?v=5s_VqPf4poU
-2023/9/23	洛可洛斯特	個人勢	2000		膠水應用	曹可DLC	立繪+建模	Jiama	忽田各	待補充	待補充
-
--->
-
 </body>
 </html>
