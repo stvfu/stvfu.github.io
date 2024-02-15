@@ -1,0 +1,115 @@
+<html>
+	<head>
+		<title>常用 shell script</title>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+		
+		<style>
+			#text {font-family:"微軟正黑體";font-size:16px;}
+			#point_Y {font-family:"微軟正黑體";color:#FFFF00;font-size:20px;}
+		</style>
+		<script type="text/JavaScript" src="../../flot.js"></script>	
+
+
+
+		<!-- 引入highlight.js庫的Deep Dark樣式表 -->
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.3.1/styles/night-owl.min.css">
+		<!-- 引入highlight.js庫 -->
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.3.1/highlight.min.js"></script>
+		<!-- 初始化highlight.js -->
+		<script>hljs.highlightAll();</script>
+
+	</head>
+
+	<body
+		style= "font-family: calibri" 	
+		text="#ffffff" 
+		bgcolor="#343434" 
+		text=#FFFFFF 
+		link=#CCCC66 
+		vlink=#FFCC66 
+		alink=#AAAA00
+		>
+		<!--onLoad="init()"-->
+		
+<h1><a href = "./">常用 shell script</a></h1>
+<br>一些常用的shell script
+<br>聯絡方式: stvfu.fu@gmail.com
+<hr><!------------------------------------------------------------------------------------------------------->
+
+<pre><code class="language-bash">
+##########################################################
+# bashrc controls
+TEMP_BASHRC_PATH=/home/stvfu/script
+alias bbb="sudo vi $TEMP_BASHRC_PATH/.bashrc"
+alias srcbbb=save_bashrc
+
+save_bashrc()
+{
+    sudo cp $TEMP_BASHRC_PATH/.bashrc.1 $TEMP_BASHRC_PATH/.bashrc.2
+    sudo cp ~/.bashrc $TEMP_BASHRC_PATH/.bashrc.1
+
+    sudo cp $TEMP_BASHRC_PATH/.bashrc ~/.bashrc
+    source ~/.bashrc
+}
+
+##########################################################
+# folder change
+alias z="cd_upper_layer"
+alias x="cd_down_layer"
+alias cdh="cd /home/stvfu"
+
+# cd upper layer
+cd_upper_layer()
+{
+    pushd . > /dev/null
+    cd ..
+    pwd_path=`pwd`
+    echo -e "\e[0m${pwd_path}\e[0m"
+    ls
+}
+# cd last back layer
+cd_down_layer()
+{
+    popd > /dev/null
+    # dirname_path=`dirname "$PWD"`
+    # basename_path=`basename "$PWD"`
+    pwd_path=`pwd`
+    echo -e "\e[0m${pwd_path}\e[0m"
+    ls
+}
+
+##########################################################
+# find / grep 
+alias=grep_i
+grep_i()
+{
+    grep -Iirn $1
+}
+alias fn="find_1"
+find_1()
+{
+    find . -name "$1*" | grep $1
+}
+
+alias dss="folder_size"
+folder_size()
+{
+    du -ch --max-depth=1
+}
+
+##########################################################
+# git related
+
+alias gl="git log"
+alias gg="git status"
+alias ggg="git status ."
+
+
+
+</code></pre>
+</div>
+<hr><!------------------------------------------------------------------------------------------------------->
+</body>
+
+</html>
+
