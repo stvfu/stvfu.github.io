@@ -37,26 +37,14 @@
 <hr><!------------------------------------------------------------------------------------------------------->
 
 <pre><code class="language-bash">
-##########################################################
-# bashrc controls
-TEMP_BASHRC_PATH=/home/stvfu/script
-alias bbb="sudo vi $TEMP_BASHRC_PATH/.bashrc"
-alias srcbbb=save_bashrc
-
-save_bashrc()
-{
-    sudo cp $TEMP_BASHRC_PATH/.bashrc.1 $TEMP_BASHRC_PATH/.bashrc.2
-    sudo cp ~/.bashrc $TEMP_BASHRC_PATH/.bashrc.1
-
-    sudo cp $TEMP_BASHRC_PATH/.bashrc ~/.bashrc
-    source ~/.bashrc
-}
 
 ##########################################################
 # folder change
+
 alias z="cd_upper_layer"
 alias x="cd_down_layer"
 alias cdh="cd /home/stvfu"
+alias cdu="cd /var/www/html/git/riscv32_crypto_demo_sim_tool"
 
 # cd upper layer
 cd_upper_layer()
@@ -78,9 +66,62 @@ cd_down_layer()
     ls
 }
 
+
 ##########################################################
-# find / grep 
-alias=grep_i
+# bashrc controls
+
+alias bbb="sudo vi /home/stvfu/script/.bashrc"
+alias srcbbb=save_bashrc
+
+pw() {
+    # get IP address
+    local ip=$(curl -s ifconfig.me)
+
+    # chech input $1
+    if [ $# -eq 0 ]; then
+        # no input -> use pwd
+        local current_path=$(pwd)
+        local http_path="http://${ip}${current_path#/var/www/html}"
+    else
+        # pwd + input get
+        local file_name=$1
+        local current_path=$(pwd)
+        local http_path="http://${ip}${current_path#/var/www/html}/${file_name}"
+        local file_path_from_codebase="${current_path#/var/www/html/}/$file_name"
+    fi
+
+    # out
+    echo "http://${ip}/web_editer/editer.php"
+    echo ""
+    echo "file_path_from_codebase:"
+    echo $file_path_from_codebase
+    echo ""
+    echo -e "http path:\n"
+    echo $http_path
+    echo -e "\n"
+    echo ""
+}
+
+save_bashrc()
+{
+    sudo cp /home/stvfu/script/.bashrc.1 /home/stvfu/script/.bashrc.2
+    sudo cp ~/.bashrc /home/stvfu/script/.bashrc.1
+
+    sudo cp /home/stvfu/script/.bashrc ~/.bashrc
+    source ~/.bashrc
+}
+
+##########################################################
+# toolchain
+toolchain_base()
+{
+    PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+}
+
+##########################################################
+# find / grep
+
+alias gp=grep_i
 grep_i()
 {
     grep -Iirn $1
@@ -97,14 +138,105 @@ folder_size()
     du -ch --max-depth=1
 }
 
+
+##########################################################
+# other
+
+rv()
+{
+    FILE=$1
+    rm $FILE
+    vi $FILE
+}
+
+vr()
+{
+    cp $1 $1.bak
+    rm -rf $1
+    vi $1
+    rm $1.bak
+    chmod 755 $1
+}
+
+alias mm="make clean;make"
+
 ##########################################################
 # git related
 
 alias gl="git log"
 alias gg="git status"
 alias ggg="git status ."
+alias Re_File="git checkout --"
+
+alias spike32="spike_32"
+alias git_push="git_push_f"
+alias git_reset="git_reset_f"
+alias gc="git commit"
+alias gca="git commit --amend"
+
+git_reset_f()
+{
+    echo "git reset"
+    git reset --hard
+    git clean -f;  git clean -fxd;  git clean -fXd
+    if [ "$1" == "" ]; then
+        echo -e "\033[33m[reset OK]\033[0m"
+    else
+        git reset --hard $1
+    fi
+    git status
+}
+
+git_push_f()
+{
+    git push -u origin main
+}
+
+##########################################################
+# RISCV related
+
+toolchain_riscv32()
+{
+    toolchain_base
+    export PATH=$PATH:/home/stvfu/download/riscv32/bin
+    export PATH=$PATH:/home/stvfu/download/corev-openhw-gcc-ubuntu2004-20240114/bin
+    export PATH=$PATH:/home/stvfu/download/riscv32_linux/bin
+}
+
+spike_32()
+{
+    SPIKE_PATH=/home/stvfu/RISCV/riscv_tool/riscv32-corev-elf/spike/bin/spike
+    PK_PATH=/home/stvfu/RISCV/riscv_tool/riscv32-corev-elf/pk/riscv32-unknown-elf/bin/pk
+    $SPIKE_PATH --isa=rv32imac $PK_PATH $1
+}
+
+spike_32_linux()
+{
+    SPIKE_PATH=/home/stvfu/RISCV/riscv_tool/riscv32-unknown-linux-gnu/spike/bin/spike
+    PK_PATH=/home/stvfu/RISCV/riscv_tool/riscv32-unknown-linux-gnu/pk/riscv32-unknown-linux-gnu/bin/pk
+    $SPIKE_PATH --isa=rv32gc $PK_PATH $1
+}
 
 
+bb()
+{
+    SPIKE_PATH=/home/stvfu/RISCV/riscv_tool/riscv32-corev-elf/spike/bin/spike
+    PK_PATH=/home/stvfu/RISCV/riscv_tool/riscv32-corev-elf/pk/riscv32-unknown-elf/bin/pk
+
+    select TAG in "test_suite" "module"
+    do
+        case $TAG in
+        "test_suite")
+                ./build_and_test.sh
+                $SPIKE_PATH --isa=rv32imac $PK_PATH out/demo_suite
+                break;;
+            "module")
+                ./fix_api_prefix.sh rot hpse legacy_camera macsec mipi_camera pcie_ide ufs vesa
+        break;;
+        esac
+    done
+}
+##########################################################
 
 </code></pre>
 </div>

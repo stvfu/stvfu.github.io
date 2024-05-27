@@ -1,0 +1,223 @@
+
+<html>
+    <head>
+        <title>壓縮解壓縮</title>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+        <style>
+            #text {font-family:"微軟正黑體";font-size:16px;}
+            #point_Y {font-family:"微軟正黑體";color:#FFFF00;font-size:20px;}
+        </style>
+        <script type="text/JavaScript" src="../../flot.js"></script>
+    </head>
+
+    <body
+        style= "font-family: calibri"
+        text="#ffffff"
+        bgcolor="#343434"
+        text=#FFFFFF
+        link=#CCCC66
+        vlink=#FFCC66
+        alink=#AAAA00
+        >
+        <!--onLoad="init()"-->
+
+
+<h1><a href = "../main.html">Steven Fu<a></h1> 工具列(੭ु´ ᐜ `)੭ु⁾⁾
+<hr><!------------------------------------------------------------------------------------------------------->
+GNU / Linux 各種壓縮與解壓縮指令<br>
+
+<table cellspacing="0" border=1 style="width:541pt">
+    <tbody>
+        <tr>
+            <td style="height:16.5pt; width:119pt">檔案類型</td>
+            <td style="width:61pt">套件名稱</td>
+            <td style="width:218pt">打包</td>
+            <td style="width:143pt">解包</td>
+        </tr>
+        <tr>
+            <td style="width:119pt">.tar (僅打包，無壓縮)</td>
+            <td>tar</td>
+            <td>tar cvf FileName.tar DirName</td>
+            <td>tar xvf FileName.tar</td>
+        </tr>
+    </tbody>
+</table>
+<br>
+
+
+<table cellspacing="0" border=1 style="width:541pt">
+    <tbody>
+        <tr>
+            <td style="height:16.5pt; width:119pt">檔案類型</td>
+            <td style="width:61pt">套件名稱</td>
+            <td style="width:218pt">壓縮</td>
+            <td style="width:143pt">解壓縮</td>
+        </tr>
+        <tr>
+            <td style="height:47.25pt">.gz</td>
+            <td>gzip</td>
+            <td>gzip FileName</td>
+            <td style="width:143pt">gunzip FileName.gz<br />
+            gzip -d FileName.gz</td>
+        </tr>
+        <tr>
+            <td style="height:31.5pt">.tar.gz</td>
+            <td>gzip</td>
+            <td>tar zcvf FileName.tar.gz DirName</td>
+            <td style="width:143pt">tar zxvf FileName.tar.gz</td>
+        </tr>
+        <tr>
+            <td style="height:47.25pt">bz</td>
+            <td>?</td>
+            <td>?</td>
+            <td style="width:143pt">bzip2 -d FileName.bz<br />
+            bunzip2 FileName.bz</td>
+        </tr>
+        <tr>
+            <td style="height:31.5pt">.tar.bz</td>
+            <td>?</td>
+            <td>?</td>
+            <td style="width:143pt">tar jxvf FileName.tar.bz</td>
+        </tr>
+        <tr>
+            <td style="height:47.25pt">.bz2</td>
+            <td>bzip2</td>
+            <td>bzip2 -z FileName</td>
+            <td style="width:143pt">bzip2 -d FileName.bz2<br />
+            bunzip2 FileName.bz2</td>
+        </tr>
+        <tr>
+            <td style="height:31.5pt">.tar.bz2</td>
+            <td>bzip2</td>
+            <td>tar jcvf FileName.tar.bz2 DirName</td>
+            <td style="width:143pt">tar jxvf FileName.tar.bz2</td>
+        </tr>
+        <tr>
+            <td style="height:31.5pt">.xz</td>
+            <td>xz-utils</td>
+            <td>xz -z FileName</td>
+            <td style="width:143pt">xz -d FileName.xz</td>
+        </tr>
+        <tr>
+            <td style="height:31.5pt">.tar.xz</td>
+            <td>xz-utils</td>
+            <td>tar Jcvf FileName.tar.xz DirName</td>
+            <td style="width:143pt">tar Jxvf FileName.tar.xz</td>
+        </tr>
+        <tr>
+            <td style="height:31.5pt">.Z</td>
+            <td>　</td>
+            <td>compress FileName</td>
+            <td style="width:143pt">uncompress FileName.Z</td>
+        </tr>
+        <tr>
+            <td style="height:31.5pt">.tar.Z</td>
+            <td>　</td>
+            <td>tar Zcvf FileName.tar.Z DirName</td>
+            <td style="width:143pt">tar Zxvf FileName.tar.Z</td>
+        </tr>
+        <tr>
+            <td style="height:31.5pt">.tgz</td>
+            <td>gzip</td>
+            <td>tar zcvf FileName.tgz FileName</td>
+            <td style="width:143pt">tar zxvf FileName.tgz</td>
+        </tr>
+        <tr>
+            <td style="height:31.5pt">.tar.tgz</td>
+            <td>gzip</td>
+            <td>tar zcvf FileName.tar.tgz FileName</td>
+            <td style="width:143pt">tar zxvf FileName.tar.tgz</td>
+        </tr>
+        <tr>
+            <td style="height:79.5pt">.7z</td>
+            <td>p7zip-full</td>
+            <td style="width:218pt">7z a FileName.7z FileName<br />
+            <br />
+            使用密碼 (PASSWORD) 壓縮<br />
+            7z a FileName.7z FileName -pPASSWORD</td>
+            <td>7z x FileName.7z</td>
+        </tr>
+        <tr>
+            <td style="height:31.5pt">.zip</td>
+            <td>zip</td>
+            <td>zip FileName.zip DirName</td>
+            <td style="width:143pt">unzip FileName.zip</td>
+        </tr>
+        <tr>
+            <td style="height:63.0pt">.rar</td>
+            <td>rar, unrar</td>
+            <td>rar a FileName.rar DirName</td>
+            <td style="width:143pt">rar e FileName.rar<br />
+            unrar e FileName.rar<br />
+            rar x FileName.rar DirName</td>
+        </tr>
+        <tr>
+            <td style="height:31.5pt">.lha</td>
+            <td>lha</td>
+            <td>lha -a FileName.lha FileName</td>
+            <td style="width:143pt">lha -e FileName.lha</td>
+        </tr>
+    </tbody>
+</table>
+
+<hr><!------------------------------------------------------------------------------------------------------->
+
+<pre>
+# 計算指定目錄資料夾統計大小(單位KB)
+du -s [folder]
+
+# 轉換單位(MB)
+du -sh [folder]
+
+# 計算現在目錄下『前五大』的資料夾或檔案
+du -s * | sort -rn | head -5
+
+# 計算現在目錄下『前五小』的資料夾或檔案
+du -s * | sort -rn | tail -5
+
+# 顯示當前資料夾下各資料夾占用容量大小 (只找一層)
+du -h --max-depth=1
+
+# 找出大於5G檔案
+find / -type f -size +5G
+
+
+# 計算硬碟占用大小
+df -ah
+
+
+"2>/dev/null" 是指將所有的錯誤訊息丟棄。
+
+# 建立一個空檔案
+## touch command
+touch foo
+
+## echo "" > foo
+
+
+
+
+########################################################################################
+#                                 string 相關
+########################################################################################
+
+#找尋.so 等binary file裡面symbol or string
+strings ./bsp/vendor/lib_dynamic/libmsAPI_XC.so | grep msAPI_CEC_GetMessageBuffer
+
+
+########################################################################################
+#                                 git 相關
+########################################################################################
+# 可以由commit 反查 tag
+tig show [commit_id]
+
+# 可以由tag 反查 commit
+tig show [tag]
+</pre>
+
+
+
+</body>
+
+</html>
