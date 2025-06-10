@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>網點素材生成器 v1.0</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        .header {
+            background-color: #f8f8f8;
+            padding: 10px; /* 缩减header的范围 */
+            text-align: center;
+            border-bottom: 1px solid #ddd;
+        }
+        .control-panel {
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            border-bottom: 1px solid #ddd;
+        }
+        .control-panel input, .control-panel select, .control-panel button {
+            margin-bottom: 10px;
+        }
+        .control-panel label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        .control-panel .inline {
+            display: flex;
+            align-items: center;
+        }
+        .control-panel .inline input {
+            margin-left: 5px;
+            margin-right: 5px;
+            width: 50px; /* 调整文字框的宽度 */
+        }
+        .control-panel .inline select {
+            margin-left: 5px;
+            margin-right: 5px;
+            width: 150px; /* 调整下拉式选单的宽度 */
+        }
+        .grid-preview {
+            display: grid;
+            grid-template-columns: repeat(3, 20px);
+            grid-template-rows: repeat(3, 20px);
+            gap: 2px;
+            margin-bottom: 10px;
+        }
+        .grid-preview div {
+            width: 20px;
+            height: 20px;
+            border: 1px solid #000;
+            cursor: pointer;
+        }
+        .grid-preview .filled {
+            background-color: #000;
+        }
+        .canvas-container {
+            flex: 1;
+            border: 1px solid #000;
+            margin: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: auto;
+            max-width: 500px;
+            max-height: 500px;
+        }
+        .status-label {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        .status-label.complete {
+            color: green;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>網點素材生成器 v1.0</h1>
+    </div>
+    <div class="control-panel">
+        <div class="inline">
+            <label for="gridWidth">網點單位 (寬x高):</label>
+            <input type="number" id="gridWidth" value="3">
+            x
+            <input type="number" id="gridHeight" value="3">
+        </div>
+        <div class="grid-preview" id="gridPreview">
+            <!-- 這裡會動態生成網格單位 -->
+        </div>
+        <div class="inline">
+            <button id="clearGrid">全清空</button>
+            <button id="fillGrid">全黑</button>
+        </div>
+        <div class="inline">
+            <label for="canvasWidth">網點畫布尺寸 (寬x高):</label>
+            <input type="number" id="canvasWidth" value="100">
+            x
+            <input type="number" id="canvasHeight" value="100">
+        </div>
+        <div class="inline">
+            <select id="canvasSize">
+                <option value="100x100">100x100</option>
+                <option value="200x200">200x200</option>
+                <option value="300x300">300x300</option>
+                <option value="1920x1080">1920x1080</option>
+                <option value="B5_350">B5_350</option>
+                <option value="A4">A4</option>
+                <option value="B5">B5</option>
+            </select>
+        </div>
+        <button id="generateDots">生成網點</button>
+        <button id="downloadPng" disabled>下載網點PNG檔</button>
+        <div class="status-label" id="statusLabel"></div>
+    </div>
+    <div class="canvas-container">
+        <canvas id="mainCanvas"></canvas>
+    </div>
+    <script>
+        // JavaScript 代碼
+        document.addEventListener('DOMContentLoaded', () => {
+            const gridPreview = document.getElementById('gridPreview');
+            const gridWidthInput = document.getElementById('gridWidth');
+            const gridHeightInput = document.getElementById('gridHeight');
+            const mainCanvas = document.getElementById('mainCanvas');
+            const generateDotsButton = document.getElementById('generateDots');
+            const downloadPngButton = document.getElementById('downloadPng');
+            const canvasWidthInput = document.getElementById('canvasWidth');
+            const canvasHeightInput = document.getElementById('canvasHeight');
+            const canvasSizeSelect = document.getElementById('canvasSize');
+            const statusLabel = document.getElementById('statusLabel');
+            const clearGridButton = document.getElementById('clearGrid');
+            const fillGridButton = document.getElementById('fillGrid');
+
+            function createGridPreview() {
+                const width = parseInt(gridWidthInput.value);
+                const height = parseInt(gridHeightInput.value);
+                gridPreview.style.gridTemplateColumns = `repeat(${width}, 20px)`;
+                gridPreview.style.gridTemplateRows = `repeat(${height}, 20px)`;
+                gridPreview.innerHTML = '';
+                for (let i = 0; i < width * height; i++) {
+                    const div = document.createElement('div');
+                    div.addEventListener('click', () => {
+                        div.classList.toggle('filled');
+                    });
+                    gridPreview.appendChild(div);
+                }
+            }
+
+            function clearGrid() {
+                const gridCells = gridPreview.querySelectorAll('div');
+                gridCells.forEach(cell => cell.classList.remove('filled'));
+            }
+
+            function fillGrid() {
+                const gridCells = gridPreview.querySelectorAll('div');
+                gridCells.forEach(cell => cell.classList.add('filled'));
+            }
+
+            function generateDots() {
+                statusLabel.textContent = '網點生成中...';
+                statusLabel.classList.remove('complete');
+                downloadPngButton.disabled = true;
+
+                const width = parseInt(gridWidthInput.value);
+                const height = parseInt(gridHeightInput.value);
+                const canvasWidth = parseInt(canvasWidthInput.value);
+                const canvasHeight = parseInt(canvasHeightInput.value);
+                mainCanvas.width = canvasWidth;
+                mainCanvas.height = canvasHeight;
+                const ctx = mainCanvas.getContext('2d');
+                ctx.clearRect(0, 0, mainCanvas.width, mainCanvas.height);
+
+                const gridCells = gridPreview.querySelectorAll('div');
+                const totalCells = gridCells.length;
+                let cellIndex = 0;
+
+                function drawCell() {
+                    if (cellIndex >= totalCells) {
+                        statusLabel.textContent = '生成完成';
+                        statusLabel.classList.add('complete');
+                        downloadPngButton.disabled = false;
+                        return;
+                    }
+
+                    const cell = gridCells[cellIndex];
+                    const cellX = cellIndex % width;
+                    const cellY = Math.floor(cellIndex / width);
+                    for (let y = 0; y < mainCanvas.height; y += height) {
+                        for (let x = 0; x < mainCanvas.width; x += width) {
+                            if (cell.classList.contains('filled')) {
+                                ctx.fillRect(x + cellX, y + cellY, 1, 1);
+                            }
+                        }
+                    }
+
+                    cellIndex++;
+                    requestAnimationFrame(drawCell);
+                }
+
+                drawCell();
+            }
+
+            function downloadPng() {
+                const link = document.createElement('a');
+                link.download = '網點.png';
+                link.href = mainCanvas.toDataURL('image/png');
+                link.click();
+            }
+
+            canvasSizeSelect.addEventListener('change', () => {
+                const value = canvasSizeSelect.value;
+                let width, height;
+                if (value === 'A4') {
+                    width = 2480;  height = 3508;
+                } else if (value === 'B5') {
+                    width = 1825;  height = 2575;
+                } else if (value === 'B5_350') {
+                    width = 2590;  height = 3624;
+                }
+                else {
+                    [width, height] = value.split('x').map(Number);
+                }
+                canvasWidthInput.value = width;
+                canvasHeightInput.value = height;
+            });
+
+            gridWidthInput.addEventListener('input', createGridPreview);
+            gridHeightInput.addEventListener('input', createGridPreview);
+            generateDotsButton.addEventListener('click', generateDots);
+            downloadPngButton.addEventListener('click', downloadPng);
+            clearGridButton.addEventListener('click', clearGrid);
+            fillGridButton.addEventListener('click', fillGrid);
+
+            createGridPreview();
+        });
+    </script>
+</body>
+</html>
