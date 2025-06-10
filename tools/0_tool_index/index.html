@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>忽田軟體</title>
+    <meta charset="utf-8" />
+    <meta name="keywords" content="忽田各, 猛少女之拳, 6n0, 鬼滅之拳, Live2D, 聯發科, 晨星">
+    <style>
+        #text {font-family:"微軟正黑體";font-size:16px;}
+        #point_Y {font-family:"微軟正黑體";color:#FFFF00;font-size:20px;}
+        body {
+            font-family: calibri;
+            color: #ffffff;
+            background-color: #343434;
+        }
+        a:link { color: #CCCC66; }
+        a:visited { color: #FFCC66; }
+        a:active { color: #AAAA00; }
+        table { width: 600px; border-collapse: collapse; }
+        td, th { border: 1px solid #fff; padding: 4px; }
+    </style>
+</head>
+<body>
+    <h1><a href="../../main.html">回首頁</a></h1>
+    <br>大家安安oωO! 這裡是忽田各!! 一個興趣使然的工程師
+    <br>聯絡方式: stvfu.fu@gmail.com
+    <hr>
+    <div id="tool-table"></div>
+    <hr>
+    <h1>其他雜項</h1>
+    <script>
+    // 讀取 tool_list.txt 並顯示成表格
+    fetch('tool_list.txt')
+        .then(response => {
+            if (!response.ok) throw new Error('無法讀取文件');
+            return response.text();
+        })
+        .then(text => {
+            const lines = text.trim().split('\n');
+            let html = '<table><tbody>';
+            for (let line of lines) {
+                const columns = line.split('|');
+                if (columns.length < 4) continue;
+                const tool_info = columns[2].split(';');
+                const tool_name = tool_info[0];
+                const tool_link = tool_info[1];
+                html += '<tr>';
+                html += `<td>${columns[0]}</td>`; // 分類
+                html += `<td>${columns[1]}</td>`; // 縮圖
+                html += `<td><a href="${tool_link}">${tool_name}</a></td>`; // 工具名稱和連結
+                html += `<td>${columns[3]}</td>`; // 發布日期
+                html += '</tr>';
+            }
+            html += '</tbody></table>';
+            document.getElementById('tool-table').innerHTML = html;
+        })
+        .catch(err => {
+            document.getElementById('tool-table').textContent = err.message;
+        });
+    </script>
+</body>
+</html>
