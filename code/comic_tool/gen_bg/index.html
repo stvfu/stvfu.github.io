@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>無限城生成</title>
+  <style>
+    body { margin: 0; background: #000; }
+    #container { 
+      width: 1280px; 
+      height: 720px; 
+      margin: 40px auto; 
+      background: #fff; 
+      box-shadow: 0 0 32px #222;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+<div id="container"></div>
+<script src="https://cdn.jsdelivr.net/npm/three@0.154.0/build/three.min.js"></script>
+<script>
+const W = 1280, H = 720;
+
+// 建立場景
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xffffff);
+
+// 建立相機
+const camera = new THREE.PerspectiveCamera(60, W/H, 0.1, 6000);
+camera.position.set(0, 600, 1800);
+camera.lookAt(0, 0, 0);
+
+// 建立渲染器
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(W, H);
+document.getElementById('container').appendChild(renderer.domElement);
+
+// 白色實體材質
+const boxMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+
+// 產生樓房的函式
+function createBuilding(xRange, yRange, zRange) {
+  // 隨機決定高樓或平房
+  let w, h, d;
+  if (Math.random() > 0.5) {
+    // 高樓
+    w = 60 + Math.random()*80;
+    d = 60 + Math.random()*80;
+    h = 400 + Math.random()*200;
+  } else {
+    // 平房
+    w = 200 + Math.random()*400;
+    d = 200 + Math.random()*400;
+    h = 30 + Math.random()*200;
+  }
+  const geometry = new THREE.BoxGeometry(w, h, d);
+  const mesh = new THREE.Mesh(geometry, boxMaterial);
+  const x = (Math.random()-0.5)*xRange;
+  const y = (Math.random()-0.5)*yRange;
+  const z = (Math.random())*zRange[1] + zRange[0];
+  mesh.position.set(x, y, z);
+  scene.add(mesh);
+
+  // 黑色邊框
+  const edges = new THREE.EdgesGeometry(geometry);
+  const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 2 }));
+  line.position.copy(mesh.position);
+  scene.add(line);
+
+  // 窗戶格線與拉門（只畫在正面 z 最大那一面）
+  const windowLines = new THREE.Group();
+  const frontZ = mesh.position.z + d/2 + 0.1; // 正面略往外一點避免Z-fighting
+
+  // 窗戶格線
+  const floorCount = h > 100 ? Math.floor(h / 40) : 1;
+  const colCount = Math.floor(w / 40);
+  for(let i=0; i<=floorCount; i++){
+    const yPos = mesh.position.y - h/2 + i*(h/floorCount);
+    const windowGeo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(mesh.position.x - w/2, yPos, frontZ),
+      new THREE.Vector3(mesh.position.x + w/2, yPos, frontZ)
+    ]);
+    const windowLine = new THREE.Line(windowGeo, new THREE.LineBasicMaterial({ color: 0x222222 }));
+    windowLines.add(windowLine);
+  }
+  for(let i=0; i<=colCount; i++){
+    const xPos = mesh.position.x - w/2 + i*(w/colCount);
+    const windowGeo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(xPos, mesh.position.y - h/2, frontZ),
+      new THREE.Vector3(xPos, mesh.position.y + h/2, frontZ)
+    ]);
+    const windowLine = new THREE.Line(windowGeo, new THREE.LineBasicMaterial({ color: 0x222222 }));
+    windowLines.add(windowLine);
+  }
+
+  // 拉門（底層中央一個大矩形）
+  const doorW = w * 0.8;
+  const doorH = h * 0.18;
+  const doorY = mesh.position.y - h/2 + doorH/2 + 2;
+  const doorGeo = new THREE.BufferGeometry().setFromPoints([
+    // 下邊
+    new THREE.Vector3(mesh.position.x - doorW/2, doorY - doorH/2, frontZ),
+    new THREE.Vector3(mesh.position.x + doorW/2, doorY - doorH/2, frontZ),
+    // 右邊
+    new THREE.Vector3(mesh.position.x + doorW/2, doorY - doorH/2, frontZ),
+    new THREE.Vector3(mesh.position.x + doorW/2, doorY + doorH/2, frontZ),
+    // 上邊
+    new THREE.Vector3(mesh.position.x + doorW/2, doorY + doorH/2, frontZ),
+    new THREE.Vector3(mesh.position.x - doorW/2, doorY + doorH/2, frontZ),
+    // 左邊
+    new THREE.Vector3(mesh.position.x - doorW/2, doorY + doorH/2, frontZ),
+    new THREE.Vector3(mesh.position.x - doorW/2, doorY - doorH/2, frontZ),
+    // 拉門中線
+    new THREE.Vector3(mesh.position.x, doorY - doorH/2, frontZ),
+    new THREE.Vector3(mesh.position.x, doorY + doorH/2, frontZ)
+  ]);
+  const doorLine = new THREE.LineSegments(doorGeo, new THREE.LineBasicMaterial({ color: 0x111111, linewidth: 2 }));
+  windowLines.add(doorLine);
+
+  scene.add(windowLines);
+}
+
+// 前景 20 個
+for(let i=0; i<10; i++){
+  createBuilding(2200, 1200, [-400, 800]); // z: -400 ~ +400
+}
+
+// 中景 40 個
+for(let i=0; i<80; i++){
+  let zRange;
+  createBuilding(3000, 1600, [-1000, 1000]);
+}
+
+// 遠景 80 個
+for(let i=0; i<160; i++){
+  let zRange;
+  createBuilding(4000, 2200, [-2000, 2000]);
+}
+
+// 畫消失點（用一個小球表示）
+const vanishPointGeo = new THREE.SphereGeometry(8, 16, 16);
+const vanishPointMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+const vanishPoint = new THREE.Mesh(vanishPointGeo, vanishPointMat);
+vanishPoint.position.set(0, 0, 0);
+scene.add(vanishPoint);
+
+// 渲染
+function animate(){
+  requestAnimationFrame(animate);
+  renderer.render(scene, camera);
+}
+animate();
+</script>
+</body>
+</html>
