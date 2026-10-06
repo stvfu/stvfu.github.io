@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>無限城生成 v2</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #000; color: #ddd; font-family: "微軟正黑體", "Microsoft JhengHei", sans-serif; font-size: 14px; }
+    #app { display: flex; min-height: 100vh; }
+    #stageWrap { flex: 1; min-width: 0; padding: 24px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    #stage {
+      position: relative; width: 100%;
+      /* 透明背景時看得到的棋盤格 */
+      background: repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%) 0 0 / 20px 20px;
+      box-shadow: 0 0 32px #222; border-radius: 8px; overflow: hidden;
+    }
+    #stage canvas { display: block; width: 100%; height: 100%; }
+    #stage #guide { position: absolute; inset: 0; pointer-events: none; }
+    #status { margin: 12px 0 0; color: #888; font-size: 12px; text-align: center; }
+    #panel { width: 300px; flex: none; background: #151515; border-left: 1px solid #2a2a2a; padding: 16px; overflow-y: auto; max-height: 100vh; position: sticky; top: 0; }
+    #panel h1 { margin: 0 0 12px; font-size: 18px; color: #fff; }
+    fieldset { border: 1px solid #2a2a2a; border-radius: 6px; margin: 0 0 12px; padding: 8px 10px 10px; }
+    legend { color: #cc6; padding: 0 6px; font-size: 13px; }
+    .row { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; margin-top: 8px; align-items: center; }
+    .row output { color: #999; font-variant-numeric: tabular-nums; }
+    .row input[type=range] { grid-column: 1 / -1; width: 100%; margin: 0; accent-color: #cc6; }
+    .row input[type=number], .row select { background: #222; color: #eee; border: 1px solid #444; border-radius: 4px; padding: 4px 6px; font: inherit; width: 130px; }
+    .check { display: flex; align-items: center; gap: 6px; margin-top: 8px; cursor: pointer; }
+    .check input { accent-color: #cc6; }
+    .row input[type=color] { background: #222; border: 1px solid #444; border-radius: 4px; padding: 1px 2px; width: 48px; height: 26px; cursor: pointer; }
+    .btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    button { background: #2a2a2a; color: #eee; border: 1px solid #444; border-radius: 4px; padding: 6px 10px; font: inherit; cursor: pointer; flex: 1 1 auto; }
+    button:hover { background: #3a3a3a; }
+    button.primary { background: #cc6; color: #111; border-color: #cc6; font-weight: bold; }
+    button.primary:hover { background: #dd7; }
+    .hint { color: #777; font-size: 12px; line-height: 1.6; margin: 8px 0 0; }
+    @media (max-width: 800px) {
+      #app { flex-direction: column; }
+      #stageWrap { padding: 12px; }
+      #panel { width: 100%; max-height: none; position: static; border-left: 0; border-top: 1px solid #2a2a2a; }
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+  <main id="stageWrap">
+    <div id="stage"><canvas id="guide"></canvas></div>
+    <p id="status"></p>
+  </main>
+
+  <aside id="panel">
+    <h1>無限城生成 v2</h1>
+
+    <fieldset>
+      <legend>構圖</legend>
+      <label class="row"><span>亂數種子</span><input type="number" data-k="seed" data-b min="0" max="999999" step="1"></label>
+      <div class="btns">
+        <button class="primary" id="btnNew">新構圖 (R)</button>
+      </div>
+      <label class="row"><span>前景建築</span><output></output><input type="range" data-k="near" data-b min="0" max="60" step="1"></label>
+      <label class="row"><span>中景建築</span><output></output><input type="range" data-k="mid" data-b min="0" max="300" step="5"></label>
+      <label class="row"><span>遠景建築</span><output></output><input type="range" data-k="far" data-b min="0" max="600" step="10"></label>
+      <label class="row"><span>高樓比例</span><output data-u="%"></output><input type="range" data-k="tall" data-b min="0" max="100" step="5"></label>
+      <label class="row"><span>顛倒錯亂程度</span><output data-u="%"></output><input type="range" data-k="chaos" data-b min="0" max="100" step="5"></label>
+      <label class="row"><span>迴廊／階梯</span><output></output><input type="range" data-k="extra" data-b min="0" max="60" step="1"></label>
+      <label class="row"><span>細節程度</span><output></output><input type="range" data-k="detail" data-b min="0" max="5" step="1"></label>
+      <label class="check"><input type="checkbox" data-k="eaves" data-b>屋簷</label>
+    </fieldset>
+
+    <fieldset>
+      <legend>鏡頭</legend>
+      <div class="btns">
+        <button data-cam="0">俯瞰</button>
+        <button data-cam="1">正面</button>
+        <button data-cam="2">仰視</button>
+        <button data-cam="3">斜角</button>
+        <button data-cam="4">廣角</button>
+      </div>
+      <label class="row"><span>視角 FOV</span><output data-u="°"></output><input type="range" data-k="fov" min="20" max="120" step="1"></label>
+      <label class="row"><span>鏡頭傾斜</span><output data-u="°"></output><input type="range" data-k="roll" min="-45" max="45" step="1"></label>
+      <label class="check"><input type="checkbox" data-k="guides">透視輔助線（消失點／視平線）</label>
+      <p class="hint">左鍵拖曳旋轉・右鍵拖曳平移・滾輪縮放</p>
+    </fieldset>
+
+    <fieldset>
+      <legend>線條</legend>
+      <label class="row"><span>線條粗細</span><output></output><input type="range" data-k="lw" min="0.5" max="4" step="0.1"></label>
+      <label class="row"><span>遠景淡化</span><output data-u="%"></output><input type="range" data-k="fade" min="0" max="100" step="5"></label>
+    </fieldset>
+
+    <fieldset>
+      <legend>上色</legend>
+      <label class="check"><input type="checkbox" data-k="color" data-b>上色模式</label>
+      <div id="colorRows">
+        <label class="row"><span>牆面</span><input type="color" data-k="cWall"></label>
+        <label class="row"><span>窗</span><input type="color" data-k="cWin"></label>
+        <label class="row"><span>平台</span><input type="color" data-k="cPlat"></label>
+        <label class="row"><span>背景</span><input type="color" data-k="cBg"></label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>光源</legend>
+      <label class="check"><input type="checkbox" data-k="light">光源模式</label>
+      <div id="lightRows">
+        <label class="row"><span>位置 X（左右）</span><output></output><input type="range" data-k="lx" min="-3000" max="3000" step="50"></label>
+        <label class="row"><span>位置 Y（上下）</span><output></output><input type="range" data-k="ly" min="-3000" max="3000" step="50"></label>
+        <label class="row"><span>位置 Z（前後）</span><output></output><input type="range" data-k="lz" min="-3000" max="3000" step="50"></label>
+        <label class="row"><span>光源強度</span><output data-u="%"></output><input type="range" data-k="lInt" min="0" max="200" step="5"></label>
+        <label class="row"><span>暗面亮度</span><output data-u="%"></output><input type="range" data-k="lAmb" min="0" max="100" step="5"></label>
+        <label class="check"><input type="checkbox" data-k="shadow">影子</label>
+        <p class="hint">畫面上的黃色圓點是光源位置（不會輸出到 PNG）</p>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>輸出</legend>
+      <label class="row"><span>畫布比例</span>
+        <select data-k="size">
+          <option value="0">16:9 橫式</option>
+          <option value="1">4:3 橫式</option>
+          <option value="2">B5 直式</option>
+          <option value="3">正方形</option>
+        </select>
+      </label>
+      <label class="row"><span>輸出倍率</span>
+        <select data-k="scale">
+          <option value="1">1x</option>
+          <option value="2">2x</option>
+          <option value="4">4x</option>
+        </select>
+      </label>
+      <label class="check"><input type="checkbox" data-k="alpha">透明背景</label>
+      <div class="btns">
+        <button class="primary" id="btnSave">儲存 PNG (S)</button>
+        <button id="btnLink">複製連結</button>
+      </div>
+      <p class="hint" id="outInfo"></p>
+    </fieldset>
+  </aside>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.154.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.154.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
+import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
+import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
+
+// ---------- 參數 ----------
+const DEF = {
+  seed: 20251229, near: 10, mid: 80, far: 160, tall: 50, chaos: 35, extra: 12, detail: 3, eaves: 1,
+  fov: 60, roll: 0, guides: 0, lw: 1.5, fade: 40, size: 0, scale: 2, alpha: 0,
+  color: 0, cWall: 0x8b5e3c, cWin: 0xffd98a, cPlat: 0xc49a6c, cBg: 0x2b1d16,
+  light: 0, lx: 1000, ly: 1500, lz: 1500, lInt: 80, lAmb: 40, shadow: 0
+};
+const SIZES = [[1280, 720], [1024, 768], [724, 1024], [900, 900]];
+// 鏡頭預設：位置 xyz、目標 xyz、FOV
+const CAMS = [
+  [0, 600, 1800, 0, 0, 0, 60],
+  [0, 0, 1900, 0, 0, 0, 60],
+  [0, -900, 1500, 0, 0, 0, 60],
+  [1400, 500, 1400, 0, 0, 0, 60],
+  [0, 200, 900, 0, 0, -400, 95]
+];
+// 三個景深層：散佈範圍 x、y 與 z 的 [起點, 長度]
+const LAYERS = [
+  { key: 'near', xRange: 2200, yRange: 1200, z: [-400, 800] },
+  { key: 'mid',  xRange: 3000, yRange: 1600, z: [-1000, 1000] },
+  { key: 'far',  xRange: 4000, yRange: 2200, z: [-2000, 2000] }
+];
+// 實體的種類（上色模式下各自一個顏色）
+const WALL = 0, PLAT = 1, WIN = 2;
+// 線條粗細倍率：第 n 層的輪廓用 WEIGHTS[n]，牆面細節用細一級的 WEIGHTS[n + 1]
+const WEIGHTS = [1.5, 1.0, 0.6, 0.4];
+
+const P = { ...DEF };
+let camInit = CAMS[0].slice(0, 6);
+readHash();
+let [W, H] = SIZES[P.size] || SIZES[0];
+
+// ---------- 場景 ----------
+const stage = document.getElementById('stage');
+const guide = document.getElementById('guide');
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(P.fov, W / H, 1, 20000);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+const DPR = Math.min(window.devicePixelRatio || 1, 2);
+stage.insertBefore(renderer.domElement, guide);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+camera.position.set(camInit[0], camInit[1], camInit[2]);
+controls.target.set(camInit[3], camInit[4], camInit[5]);
+controls.update();
+controls.addEventListener('change', requestRender);
+
+// 實體（往後推一點，讓貼在牆面上的線不會 Z-fighting）；窗貼在牆面上，推得比牆少、比線多
+// 牆面與平台會受光；窗是自發光，不受光源影響
+const fillMats = [2, 2, 1].map((o, kind) => new (kind === WIN ? THREE.MeshBasicMaterial : THREE.MeshLambertMaterial)(
+  { color: 0xffffff, polygonOffset: true, polygonOffsetFactor: o, polygonOffsetUnits: o }));
+fillMats[WIN].side = THREE.DoubleSide;
+// 方塊六個面的材質（+x -x +y -y +z -z）：只有頂面是平台，其餘是牆面
+const boxMats = [WALL, WALL, PLAT, WALL, WALL, WALL].map(k => fillMats[k]);
+const unitBox = new THREE.BoxGeometry(1, 1, 1);
+const lineMats = WEIGHTS.map(() => {
+  const m = new LineMaterial({ color: 0x000000, linewidth: 1 });
+  m.fog = true;
+  return m;
+});
+// 光源：亮度 = 顏色 ×（暗面亮度 + 光源強度 × 受光角度），不隨距離衰減
+renderer.useLegacyLights = true;
+const ambient = new THREE.AmbientLight(0xffffff, 1);
+const lamp = new THREE.PointLight(0xffffff, 0, 0, 0);
+scene.add(ambient, lamp);
+// 影子：被擋住的地方只剩暗面亮度。點光源的陰影貼圖是 4×2 格，所以單格最大是貼圖上限的 1/4
+renderer.shadowMap.enabled = true;
+const shadowSize = Math.min(2048, renderer.capabilities.maxTextureSize / 4);
+lamp.shadow.mapSize.set(shadowSize, shadowSize);
+lamp.shadow.camera.near = 10;
+lamp.shadow.camera.far = 12000;
+lamp.shadow.bias = -0.0003;
+lamp.shadow.normalBias = 4;
+let world = null;
+
+// ---------- 亂數 ----------
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+// 每個物件各自一組亂數，調整數量或開關時其他物件不會跟著變
+function subRng(group, index) {
+  return mulberry32((P.seed ^ Math.imul(group + 1, 0x9E3779B1) ^ Math.imul(index + 1, 0x85EBCA6B)) >>> 0);
+}
+
+// ---------- 幾何收集 ----------
+const boxes = [];
+const panes = [];
+const lines = WEIGHTS.map(() => []);
+
+function seg(layer, m, ax, ay, az, bx, by, bz) {
+  const e = m.elements;
+  lines[layer].push(
+    e[0] * ax + e[4] * ay + e[8] * az + e[12], e[1] * ax + e[5] * ay + e[9] * az + e[13], e[2] * ax + e[6] * ay + e[10] * az + e[14],
+    e[0] * bx + e[4] * by + e[8] * bz + e[12], e[1] * bx + e[5] * by + e[9] * bz + e[13], e[2] * bx + e[6] * by + e[10] * bz + e[14]
+  );
+}
+
+// 窗：貼在牆面上的色塊（四個角依序繞一圈）
+const _p = [0, 1, 2, 3].map(() => new THREE.Vector3());
+function pane(m, corners) {
+  corners.forEach((c, i) => _p[i].set(c[0], c[1], c[2]).applyMatrix4(m));
+  for (const i of [0, 1, 2, 0, 2, 3]) panes.push(_p[i].x, _p[i].y, _p[i].z);
+}
+
+// 實心方塊 + 黑色邊框
+function box(layer, m, cx, cy, cz, w, h, d) {
+  boxes.push(new THREE.Matrix4().makeTranslation(cx, cy, cz).scale(new THREE.Vector3(w, h, d)).premultiply(m));
+  const x0 = cx - w / 2, x1 = cx + w / 2, y0 = cy - h / 2, y1 = cy + h / 2, z0 = cz - d / 2, z1 = cz + d / 2;
+  for (const y of [y0, y1]) {
+    seg(layer, m, x0, y, z0, x1, y, z0); seg(layer, m, x1, y, z0, x1, y, z1);
+    seg(layer, m, x1, y, z1, x0, y, z1); seg(layer, m, x0, y, z1, x0, y, z0);
+  }
+  for (const x of [x0, x1]) for (const z of [z0, z1]) seg(layer, m, x, y0, z, x, y1, z);
+}
+
+// 無限城的特徵：部分建築橫躺或倒吊
+const FLIPS = [[Math.PI, 0, 0], [Math.PI / 2, 0, 0], [-Math.PI / 2, 0, 0], [0, 0, Math.PI / 2], [0, 0, -Math.PI / 2]];
+function placement(r, x, y, z) {
+  const m = new THREE.Matrix4();
+  const u = r(), pick = r();
+  if (u < P.chaos / 100) {
+    const f = FLIPS[Math.floor(pick * FLIPS.length)];
+    m.makeRotationFromEuler(new THREE.Euler(f[0], f[1], f[2]));
+  }
+  return m.setPosition(x, y, z);
+}
+
+// ---------- 樓房 ----------
+function createBuilding(li, index, detail) {
+  const L = LAYERS[li], r = subRng(li, index);
+  // 隨機決定高樓或平房
+  const tall = r() < P.tall / 100;
+  const a = r(), b = r(), c = r();
+  let w, h, d;
+  if (tall) {
+    w = 60 + a * 80; d = 60 + b * 80; h = 400 + c * 200;
+  } else {
+    w = 200 + a * 400; d = 200 + b * 400; h = 30 + c * 200;
+  }
+  const x = (r() - 0.5) * L.xRange, y = (r() - 0.5) * L.yRange, z = r() * L.z[1] + L.z[0];
+  const m = placement(r, x, y, z);
+  const topEave = r() < 0.55, midEave = r() < 0.4, eaveOut = 12 + r() * 14, eaveStep = 2 + Math.floor(r() * 3);
+
+  box(li, m, 0, 0, 0, w, h, d);
+
+  const floors = h > 100 ? Math.floor(h / 40) : 1;
+  const fh = h / floors, y0 = -h / 2;
+
+  // 屋簷
+  if (P.eaves) {
+    if (topEave) box(li, m, 0, h / 2 + 4, 0, w + eaveOut * 2, 8, d + eaveOut * 2);
+    if (midEave && detail >= 2) {
+      for (let k = eaveStep; k < floors; k += eaveStep) box(li, m, 0, y0 + k * fh, 0, w + eaveOut * 1.4, 4, d + eaveOut * 1.4);
+    }
+  }
+  if (detail < 1) return;
+
+  // 四個立面：u 為沿牆面的水平座標
+  const faces = [
+    { len: w, p: (u, v) => [u, v, d / 2] },
+    { len: w, p: (u, v) => [u, v, -d / 2] },
+    { len: d, p: (u, v) => [w / 2, v, u] },
+    { len: d, p: (u, v) => [-w / 2, v, u] }
+  ];
+  for (const f of faces) {
+    const fl = (u1, v1, u2, v2) => {
+      const p = f.p(u1, v1), q = f.p(u2, v2);
+      seg(li + 1, m, p[0], p[1], p[2], q[0], q[1], q[2]);
+    };
+    const win = (u1, v1, u2, v2) => {
+      if (P.color) pane(m, [f.p(u1, v1), f.p(u2, v1), f.p(u2, v2), f.p(u1, v2)]);
+    };
+    const cols = Math.max(1, Math.floor(f.len / 40));
+    const cw = f.len / cols, u0 = -f.len / 2, u1 = f.len / 2;
+
+    // 樓層線
+    for (let k = 1; k < floors; k++) fl(u0, y0 + k * fh, u1, y0 + k * fh);
+
+    if (detail === 1) {
+      for (let i = 1; i < cols; i++) fl(u0 + i * cw, y0, u0 + i * cw, y0 + h);
+      continue;
+    }
+
+    for (let k = 0; k < floors; k++) {
+      const yb = y0 + k * fh, yt = yb + fh;
+      const pattern = Math.floor(r() * 4);
+
+      if (k === 0) {
+        // 拉門（底層中央）
+        const dw = Math.min(f.len * 0.8, 120), dh = fh * 0.8;
+        win(-dw / 2, yb, dw / 2, yb + dh);
+        fl(-dw / 2, yb, -dw / 2, yb + dh); fl(dw / 2, yb, dw / 2, yb + dh);
+        fl(-dw / 2, yb + dh, dw / 2, yb + dh); fl(0, yb, 0, yb + dh);
+        for (let i = 1; i < cols; i++) {
+          const u = u0 + i * cw;
+          if (Math.abs(u) > dw / 2 + 1) fl(u, yb, u, yt);
+        }
+        continue;
+      }
+
+      // 柱線
+      for (let i = 1; i < cols; i++) fl(u0 + i * cw, yb, u0 + i * cw, yt);
+      // 窗的色塊：整面障子／欄杆以上／欄間
+      if (pattern === 1) win(u0, yb, u1, yt);
+      else if (pattern === 2) win(u0, yb + fh * 0.32, u1, yt);
+      else if (pattern === 3) win(u0, yt - fh * 0.2, u1, yt);
+      if (detail < 3) continue;
+
+      if (pattern === 1) {
+        // 障子格
+        fl(u0, yb + fh / 3, u1, yb + fh / 3); fl(u0, yb + fh * 2 / 3, u1, yb + fh * 2 / 3);
+        for (let i = 0; i < cols; i++) fl(u0 + (i + 0.5) * cw, yb, u0 + (i + 0.5) * cw, yt);
+      } else if (pattern === 2) {
+        // 欄杆
+        fl(u0, yb + fh * 0.08, u1, yb + fh * 0.08); fl(u0, yb + fh * 0.32, u1, yb + fh * 0.32);
+        const n = cols * 3;
+        for (let i = 1; i < n; i++) fl(u0 + i * f.len / n, yb + fh * 0.08, u0 + i * f.len / n, yb + fh * 0.32);
+      } else if (pattern === 3) {
+        // 欄間
+        fl(u0, yt - fh * 0.2, u1, yt - fh * 0.2);
+        const n = cols * 2;
+        for (let i = 1; i < n; i++) fl(u0 + i * f.len / n, yt - fh * 0.2, u0 + i * f.len / n, yt);
+      }
+    }
+  }
+
+  // 木地板線（平房的頂面與底面）
+  if (detail >= 3 && !tall) {
+    const n = Math.floor(d / 40);
+    for (let i = 1; i < n; i++) {
+      const pz = -d / 2 + i * d / n;
+      if (!(P.eaves && topEave)) seg(li + 1, m, -w / 2, h / 2, pz, w / 2, h / 2, pz);
+      seg(li + 1, m, -w / 2, -h / 2, pz, w / 2, -h / 2, pz);
+    }
+  }
+}
+
+// ---------- 迴廊與階梯 ----------
+function createExtra(index) {
+  const r = subRng(7, index);
+  const x = (r() - 0.5) * 2600, y = (r() - 0.5) * 1400, z = -1200 + r() * 1700;
+  const li = z > -300 ? 0 : 1;
+  const m = placement(r, x, y, z);
+  if (r() < 0.5) m.multiply(new THREE.Matrix4().makeRotationY(Math.PI / 2));
+
+  if (r() < 0.5) {
+    // 迴廊：長條地板 + 兩側欄杆
+    const len = 500 + r() * 900, wd = 40 + r() * 40;
+    box(li, m, 0, 0, 0, len, 8, wd);
+    const posts = Math.round(len / 50);
+    for (const s of [-1, 1]) {
+      const pz = s * wd / 2;
+      seg(li + 1, m, -len / 2, 26, pz, len / 2, 26, pz);
+      for (let i = 0; i <= posts; i++) {
+        const px = -len / 2 + i * len / posts;
+        seg(li + 1, m, px, 4, pz, px, 26, pz);
+      }
+    }
+  } else {
+    // 階梯
+    const n = 8 + Math.floor(r() * 10), sw = 70 + r() * 50, run = 26, rise = 14;
+    for (let j = 0; j < n; j++) box(li, m, (j - n / 2) * run, (j - n / 2) * rise, 0, run, rise, sw);
+  }
+}
+
+// ---------- 生成 ----------
+function build() {
+  if (world) {
+    scene.remove(world);
+    world.traverse(o => { if (o.geometry && o.geometry !== unitBox) o.geometry.dispose(); });
+  }
+  boxes.length = 0;
+  panes.length = 0;
+  lines.forEach(l => l.length = 0);
+
+  let count = 0;
+  LAYERS.forEach((L, li) => {
+    const detail = Math.max(0, Math.min(3, P.detail - li));
+    for (let i = 0; i < P[L.key]; i++) createBuilding(li, i, detail);
+    count += P[L.key];
+  });
+  for (let i = 0; i < P.extra; i++) createExtra(i);
+
+  world = new THREE.Group();
+  if (boxes.length) {
+    const mesh = new THREE.InstancedMesh(unitBox, boxMats, boxes.length);
+    boxes.forEach((m, i) => mesh.setMatrixAt(i, m));
+    mesh.frustumCulled = false;
+    mesh.castShadow = mesh.receiveShadow = true;
+    world.add(mesh);
+  }
+  if (panes.length) {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(panes, 3));
+    const mesh = new THREE.Mesh(geo, fillMats[WIN]);
+    mesh.frustumCulled = false;
+    world.add(mesh);
+  }
+  let segs = 0;
+  lines.forEach((arr, li) => {
+    if (!arr.length) return;
+    segs += arr.length / 6;
+    const obj = new LineSegments2(new LineSegmentsGeometry().setPositions(arr), lineMats[li]);
+    obj.frustumCulled = false;
+    world.add(obj);
+  });
+  scene.add(world);
+  document.getElementById('status').textContent =
+    `種子 ${P.seed}・建築 ${count} 棟・迴廊／階梯 ${P.extra} 個・線段 ${segs.toLocaleString()} 條`;
+}
+
+// ---------- 繪製 ----------
+function applyStyle() {
+  [W, H] = SIZES[P.size] || SIZES[0];
+  stage.style.aspectRatio = `${W} / ${H}`;
+  stage.style.maxWidth = `calc((100vh - 90px) * ${W / H})`;
+  renderer.setPixelRatio(DPR);
+  renderer.setSize(W, H, false);
+  guide.width = W * DPR; guide.height = H * DPR;
+  // 上色模式關閉時全部是白色
+  const bg = P.color ? P.cBg : 0xffffff;
+  [P.cWall, P.cPlat, P.cWin].forEach((c, kind) => fillMats[kind].color.setHex(P.color ? c : 0xffffff));
+  document.getElementById('colorRows').hidden = !P.color;
+  renderer.setClearColor(bg, P.alpha ? 0 : 1);
+  // 光源模式關閉時只留全亮的環境光，等同不打光
+  ambient.intensity = P.light ? P.lAmb / 100 : 1;
+  lamp.intensity = P.light ? P.lInt / 100 : 0;
+  lamp.position.set(P.lx, P.ly, P.lz);
+  lamp.castShadow = !!(P.light && P.shadow);
+  document.getElementById('lightRows').hidden = !P.light;
+  // resolution 維持邏輯尺寸，線寬就會跟著輸出倍率等比放大
+  lineMats.forEach((m, i) => { m.linewidth = P.lw * WEIGHTS[i]; m.resolution.set(W, H); });
+  scene.fog = P.fade > 0 ? new THREE.Fog(bg, 1200, 2700 + 6000 * (1 - P.fade / 100)) : null;
+  document.getElementById('outInfo').textContent =
+    `輸出尺寸 ${W * P.scale} × ${H * P.scale} px` + (P.guides ? '（含輔助線）' : '');
+}
+
+function render3D() {
+  camera.fov = P.fov;
+  camera.aspect = W / H;
+  camera.updateProjectionMatrix();
+  camera.lookAt(controls.target);
+  camera.rotateZ(P.roll * Math.PI / 180);
+  camera.updateMatrixWorld();
+  renderer.render(scene, camera);
+}
+
+// 方向向量的消失點（畫面座標），在鏡頭後方則回傳 null
+const _v = new THREE.Vector3();
+function vanishingPoint(dx, dy, dz) {
+  _v.set(dx, dy, dz).transformDirection(camera.matrixWorldInverse);
+  if (-_v.z < 1e-3) return null;
+  const e = camera.projectionMatrix.elements;
+  return { x: (e[0] * _v.x / -_v.z * 0.5 + 0.5) * W, y: (0.5 - e[5] * _v.y / -_v.z * 0.5) * H };
+}
+
+function drawGuides(ctx) {
+  const far = (W + H) * 20, reach = far * 2;
+  const axes = [[1, 0, 0, '#e5484d'], [0, 1, 0, '#2f9e5f'], [0, 0, 1, '#3e63dd']];
+  ctx.lineWidth = 1;
+  for (const [ax, ay, az, color] of axes) {
+    for (const s of [1, -1]) {
+      const p = vanishingPoint(ax * s, ay * s, az * s);
+      if (!p || Math.abs(p.x) > far || Math.abs(p.y) > far) continue;
+      ctx.strokeStyle = color;
+      ctx.globalAlpha = 0.35;
+      ctx.beginPath();
+      for (let k = 0; k < 24; k++) {
+        const t = k * Math.PI / 24, cx = Math.cos(t) * reach, cy = Math.sin(t) * reach;
+        ctx.moveTo(p.x - cx, p.y - cy); ctx.lineTo(p.x + cx, p.y + cy);
+      }
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = color;
+      ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  // 視平線：通過兩個水平方向消失點的直線
+  camera.getWorldDirection(_v);
+  const ang = Math.atan2(_v.x, _v.z);
+  const p1 = vanishingPoint(Math.sin(ang - 0.3), 0, Math.cos(ang - 0.3));
+  const p2 = vanishingPoint(Math.sin(ang + 0.3), 0, Math.cos(ang + 0.3));
+  if (p1 && p2) {
+    const dx = p2.x - p1.x, dy = p2.y - p1.y, len = Math.hypot(dx, dy);
+    if (len > 1e-3 && len < far) {
+      const k = reach / len;
+      ctx.strokeStyle = '#d97706'; ctx.lineWidth = 2; ctx.setLineDash([10, 6]);
+      ctx.beginPath(); ctx.moveTo(p1.x - dx * k, p1.y - dy * k); ctx.lineTo(p1.x + dx * k, p1.y + dy * k); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+}
+
+// 光源位置的標記（只顯示在預覽，不輸出）
+function drawLamp(ctx) {
+  _v.copy(lamp.position).project(camera);
+  if (_v.z > 1) return;
+  const x = (_v.x * 0.5 + 0.5) * W, y = (0.5 - _v.y * 0.5) * H;
+  ctx.fillStyle = '#ffd43b'; ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+}
+
+let pending = false, dirty = false;
+function requestRender() {
+  if (pending) return;
+  pending = true;
+  requestAnimationFrame(() => {
+    pending = false;
+    if (dirty) { dirty = false; build(); }
+    render3D();
+    const ctx = guide.getContext('2d');
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    if (P.guides) drawGuides(ctx);
+    if (P.light) drawLamp(ctx);
+    saveHashSoon();
+  });
+}
+function requestBuild() { dirty = true; requestRender(); }
+
+// ---------- 輸出 ----------
+function savePNG() {
+  const s = P.scale;
+  renderer.setPixelRatio(s);
+  renderer.setSize(W, H, false);
+  render3D();
+  const out = document.createElement('canvas');
+  out.width = W * s; out.height = H * s;
+  const ctx = out.getContext('2d');
+  ctx.drawImage(renderer.domElement, 0, 0);
+  if (P.guides) { ctx.scale(s, s); drawGuides(ctx); }
+  renderer.setPixelRatio(DPR);
+  renderer.setSize(W, H, false);
+  requestRender();
+  out.toBlob(blob => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `mugenjo_${P.seed}_${out.width}x${out.height}.png`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }, 'image/png');
+}
+
+// ---------- 網址保存狀態 ----------
+function readHash() {
+  const q = new URLSearchParams(location.hash.slice(1));
+  for (const k in DEF) {
+    const v = parseFloat(q.get(k));
+    if (Number.isFinite(v)) P[k] = v;
+  }
+  const c = (q.get('cam') || '').split(',').map(Number);
+  if (c.length === 6 && c.every(Number.isFinite)) camInit = c;
+}
+let hashTimer = 0;
+function saveHashSoon() {
+  clearTimeout(hashTimer);
+  hashTimer = setTimeout(() => {
+    const q = new URLSearchParams();
+    for (const k in DEF) if (P[k] !== DEF[k]) q.set(k, P[k]);
+    q.set('seed', P.seed);
+    q.set('cam', [...camera.position.toArray(), ...controls.target.toArray()].map(n => Math.round(n)).join(','));
+    history.replaceState(null, '', '#' + q.toString().replace(/%2C/g, ','));
+  }, 400);
+}
+
+// ---------- 控制面板 ----------
+const inputs = [...document.querySelectorAll('[data-k]')];
+function syncInput(el) {
+  const k = el.dataset.k;
+  if (el.type === 'checkbox') el.checked = !!P[k];
+  else if (el.type === 'color') el.value = '#' + P[k].toString(16).padStart(6, '0');
+  else el.value = P[k];
+  const out = el.parentElement.querySelector('output');
+  if (out) out.textContent = P[k] + (out.dataset.u || '');
+}
+for (const el of inputs) {
+  syncInput(el);
+  el.addEventListener('input', () => {
+    const k = el.dataset.k;
+    const v = el.type === 'checkbox' ? (el.checked ? 1 : 0)
+      : el.type === 'color' ? parseInt(el.value.slice(1), 16) : parseFloat(el.value);
+    if (!Number.isFinite(v)) return;
+    P[k] = v;
+    syncInput(el);
+    applyStyle();
+    if ('b' in el.dataset) requestBuild(); else requestRender();
+  });
+}
+
+function newSeed() {
+  P.seed = Math.floor(Math.random() * 1000000);
+  inputs.forEach(syncInput);
+  requestBuild();
+}
+function setCam(c) {
+  camera.position.set(c[0], c[1], c[2]);
+  controls.target.set(c[3], c[4], c[5]);
+  P.fov = c[6]; P.roll = 0;
+  inputs.forEach(syncInput);
+  controls.update();
+  requestRender();
+}
+document.getElementById('btnNew').addEventListener('click', newSeed);
+document.getElementById('btnSave').addEventListener('click', savePNG);
+document.getElementById('btnLink').addEventListener('click', e => {
+  clearTimeout(hashTimer);
+  const btn = e.currentTarget;
+  setTimeout(() => navigator.clipboard.writeText(location.href).then(
+    () => { btn.textContent = '已複製'; setTimeout(() => btn.textContent = '複製連結', 1200); },
+    () => { btn.textContent = '複製失敗'; setTimeout(() => btn.textContent = '複製連結', 1200); }
+  ), 450);
+  saveHashSoon();
+});
+document.querySelectorAll('[data-cam]').forEach(b => b.addEventListener('click', () => setCam(CAMS[b.dataset.cam])));
+window.addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.target.tagName === 'INPUT' && e.target.type === 'number') return;
+  if (e.key === 'r' || e.key === 'R') newSeed();
+  if (e.key === 's' || e.key === 'S') savePNG();
+});
+
+applyStyle();
+requestBuild();
+</script>
+</body>
+</html>
