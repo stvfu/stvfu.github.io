@@ -408,7 +408,16 @@ footer button { height: 44px; min-width: 72px; }
             titleDiv.className = 'conv-title';
             titleDiv.textContent = conv.title || '新對話';
             const small = document.createElement('small');
-            small.textContent = formatDate(conv.updated || conv.created);
+            if (conv.provider) {
+                const theme = PROVIDER_THEMES[conv.provider] || PROVIDER_THEMES.default;
+                const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                const badge = document.createElement('span');
+                badge.textContent = theme.name;
+                badge.style.cssText = 'font-weight:600;color:' + (dark ? theme.dark.accent : theme.light.accent);
+                small.appendChild(badge);
+                small.appendChild(document.createTextNode(' · '));
+            }
+            small.appendChild(document.createTextNode(formatDate(conv.updated || conv.created)));
             titleDiv.appendChild(small);
 
             const del = document.createElement('button');
@@ -688,7 +697,7 @@ footer button { height: 44px; min-width: 72px; }
             messages.push({ role: 'assistant', content: answer });
             div.dataset.idx = messages.length - 1;
             try {
-                const r1 = await convApi('append', { id: activeId, role: 'user', content: text });
+                const r1 = await convApi('append', { id: activeId, role: 'user', content: text, provider: getProvider(els.model.value) });
                 const r2 = await convApi('append', { id: activeId, role: 'assistant', content: answer });
                 const updated = r2.error ? null : r2;
                 if (updated) {
@@ -696,6 +705,7 @@ footer button { height: 44px; min-width: 72px; }
                     if (conv) {
                         conv.title = updated.title;
                         conv.updated = updated.updated;
+                        if (updated.provider) conv.provider = updated.provider;
                         const idx = convList.indexOf(conv);
                         if (idx > 0) { convList.splice(idx, 1); convList.unshift(conv); }
                     }

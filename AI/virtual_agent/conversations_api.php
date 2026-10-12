@@ -27,6 +27,7 @@ $db->exec('CREATE TABLE IF NOT EXISTS messages (
     created INTEGER NOT NULL
 )');
 $db->exec('CREATE INDEX IF NOT EXISTS idx_msg_conv ON messages(conv_id, id)');
+try { $db->exec('ALTER TABLE conversations ADD COLUMN provider TEXT NOT NULL DEFAULT \'\''); } catch (PDOException $e) {}
 
 $input = [];
 $action = $_GET['action'] ?? '';
@@ -42,14 +43,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 switch ($action) {
     case 'list':
-        $rows = $db->query('SELECT id, title, created, updated FROM conversations ORDER BY updated DESC')
+        $rows = $db->query('SELECT id, title, provider, created, updated FROM conversations ORDER BY updated DESC')
                     ->fetchAll(PDO::FETCH_ASSOC);
         echo json_encode($rows);
         break;
 
     case 'get':
         $id = $input['id'] ?? $_GET['id'] ?? '';
-        $stmt = $db->prepare('SELECT id, title, created, updated FROM conversations WHERE id = ?');
+        $stmt = $db->prepare('SELECT id, title, provider, created, updated FROM conversations WHERE id = ?');
         $stmt->execute([$id]);
         $conv = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$conv) {
@@ -90,8 +91,9 @@ switch ($action) {
             if ((int) $count->fetchColumn() === 1) {
                 $t = str_replace("\n", ' ', trim($content));
                 $title = strlen($t) > 90 ? substr($t, 0, 90) . '…' : $t;
-                $db->prepare('UPDATE conversations SET title = ?, updated = ? WHERE id = ?')
-                   ->execute([$title, $now, $id]);
+                $provider = $input['provider'] ?? '';
+                $db->prepare('UPDATE conversations SET title = ?, provider = ?, updated = ? WHERE id = ?')
+                   ->execute([$title, $provider, $now, $id]);
             } else {
                 $db->prepare('UPDATE conversations SET updated = ? WHERE id = ?')->execute([$now, $id]);
             }
@@ -99,7 +101,7 @@ switch ($action) {
             $db->prepare('UPDATE conversations SET updated = ? WHERE id = ?')->execute([$now, $id]);
         }
         $db->commit();
-        $stmt = $db->prepare('SELECT id, title, created, updated FROM conversations WHERE id = ?');
+        $stmt = $db->prepare('SELECT id, title, provider, created, updated FROM conversations WHERE id = ?');
         $stmt->execute([$id]);
         echo json_encode($stmt->fetch(PDO::FETCH_ASSOC));
         break;
