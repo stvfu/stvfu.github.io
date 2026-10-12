@@ -97,6 +97,86 @@ switch ($action) {
         }
         respond(['path' => relative_path($path), 'hash' => md5($content)]);
 
+    case 'mkdir':
+        $path = resolve_path((string)($_POST['path'] ?? ''), false);
+        if ($path === null || $path === BASE_DIR) {
+            fail('Invalid directory name.');
+        }
+        if (file_exists($path)) {
+            fail('Already exists.', 409);
+        }
+        if (!@mkdir($path)) {
+            fail('Failed to create directory (permission denied?).', 403);
+        }
+        respond(['path' => relative_path($path)]);
+
+    case 'delete':
+        $path = resolve_path((string)($_POST['path'] ?? ''));
+        if ($path === null || $path === BASE_DIR) {
+            fail('Invalid path.');
+        }
+        if (is_dir($path)) {
+            $contents = @scandir($path);
+            if ($contents !== false && count(array_diff($contents, ['.', '..'])) > 0) {
+                if (empty($_POST['force'])) {
+                    fail('Directory is not empty. Send force=1 to delete recursively.', 409);
+                }
+                deleteRecursive($path);
+            } else {
+                if (!@rmdir($path)) {
+                    fail('Failed to delete directory (permission denied?).', 403);
+                }
+            }
+        } elseif (is_file($path) || is_link($path)) {
+            if (!@unlink($path)) {
+                fail('Failed to delete file (permission denied?).', 403);
+            }
+        } else {
+            fail('Not found.', 404);
+        }
+        respond(['deleted' => relative_path($path)]);
+
+    case 'rename':
+        $oldPath = resolve_path((string)($_POST['path'] ?? ''));
+        if ($oldPath === null || $oldPath === BASE_DIR) {
+            fail('Invalid source path.');
+        }
+        $newName = basename((string)($_POST['name'] ?? ''));
+        if ($newName === '' || $newName === '.' || $newName === '..') {
+            fail('Invalid new name.');
+        }
+        $newPath = dirname($oldPath) . '/' . $newName;
+        if (!str_starts_with($newPath, BASE_DIR . '/')) {
+            fail('Invalid new name.');
+        }
+        if (file_exists($newPath)) {
+            fail('A file or directory with that name already exists.', 409);
+        }
+        if (!@rename($oldPath, $newPath)) {
+            fail('Failed to rename (permission denied?).', 403);
+        }
+        respond(['old' => relative_path($oldPath), 'new' => relative_path($newPath)]);
+
     default:
         fail('Unknown action.');
+}
+
+function deleteRecursive(string $dir): void
+{
+    $items = @scandir($dir);
+    if ($items === false) {
+        return;
+    }
+    foreach ($items as $item) {
+        if ($item === '.' || $item === '..') {
+            continue;
+        }
+        $path = $dir . '/' . $item;
+        if (is_dir($path) && !is_link($path)) {
+            deleteRecursive($path);
+        } else {
+            @unlink($path);
+        }
+    }
+    @rmdir($dir);
 }

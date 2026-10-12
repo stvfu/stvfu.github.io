@@ -120,6 +120,59 @@ $cdn = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16';
         .file-entry:hover {
             background-color: #555;
         }
+        /* action dialog (desktop: context menu, mobile: bottom sheet) */
+        #action-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 999;
+        }
+        #action-dialog {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            background: #3e3d32;
+            border: 1px solid #555;
+            min-width: 160px;
+            box-shadow: 2px 2px 8px rgba(0,0,0,.5);
+        }
+        #action-dialog .ad-title {
+            padding: 8px 14px;
+            font-size: 12px;
+            color: #999;
+            border-bottom: 1px solid #555;
+            word-break: break-all;
+        }
+        #action-dialog .ad-item {
+            padding: 10px 14px;
+            cursor: pointer;
+        }
+        #action-dialog .ad-item:hover {
+            background: #555;
+        }
+        @media (pointer: coarse) {
+            #action-overlay { background: rgba(0,0,0,.4); }
+            #action-dialog {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                top: auto;
+                border: none;
+                border-radius: 12px 12px 0 0;
+                min-width: auto;
+                padding-bottom: env(safe-area-inset-bottom, 8px);
+            }
+            #action-dialog .ad-item {
+                padding: 14px 20px;
+                font-size: 16px;
+            }
+            #action-dialog .ad-title {
+                padding: 12px 20px;
+                font-size: 14px;
+                text-align: center;
+            }
+        }
         #status-bar {
             padding: 4px 10px;
             background: #333;
@@ -131,7 +184,6 @@ $cdn = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16';
         #status-bar.error #status-msg {
             color: #f92672;
         }
-
         /* ===== Classic (web_editer2 nostalgia) ===== */
         body.classic {
             background: #fff;
@@ -189,6 +241,18 @@ $cdn = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16';
         body.classic .file-entry.active {
             background-color: #bde;
         }
+        body.classic #action-dialog {
+            background: #fff;
+            border-color: #ccc;
+            color: #000;
+        }
+        body.classic #action-dialog .ad-title {
+            color: #666;
+            border-color: #ccc;
+        }
+        body.classic #action-dialog .ad-item:hover {
+            background: #eee;
+        }
         body.classic #status-bar {
             display: none;
         }
@@ -204,6 +268,8 @@ $cdn = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16';
         <button onclick="loadFile()">Load</button>
         <button onclick="saveFile()" title="Ctrl+S">Save</button>
         <button onclick="newFile()">New</button>
+        <button onclick="newFolder()">Mkdir</button>
+        <button onclick="deleteCurrentFile()">Delete</button>
         <button onclick="convertTabsToSpaces()">Tab to Space</button>
         <button onclick="removeTrailingSpaces()">No tail Space</button>
         <button onclick="openExternalLink()">Open Link</button>
@@ -226,6 +292,13 @@ $cdn = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16';
     <div id="status-bar">
         <span id="status-msg"></span>
         <span id="status-info"></span>
+    </div>
+    <div id="action-overlay"></div>
+    <div id="action-dialog">
+        <div class="ad-title" id="ad-title"></div>
+        <div class="ad-item" data-action="open">Open</div>
+        <div class="ad-item" data-action="rename">Rename</div>
+        <div class="ad-item" data-action="delete">Delete</div>
     </div>
     <script>
         const CSRF_TOKEN = <?= json_encode(csrf_token()) ?>;
@@ -392,18 +465,118 @@ $cdn = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16';
             loadFile(path);
         }
 
+        async function newFolder() {
+            const name = prompt('New folder name (in /' + currentDir + '):');
+            if (!name || !name.trim()) {
+                return;
+            }
+            const path = (currentDir ? currentDir + '/' : '') + name.trim();
+            try {
+                await api('mkdir', { path });
+                setStatus('Created folder /' + path);
+            } catch (error) {
+                setStatus(error.message, true);
+                return;
+            }
+            await listFiles(currentDir);
+        }
+
+        async function deleteItem(path, isDir) {
+            const label = isDir ? 'folder' : 'file';
+            if (!confirm('Delete ' + label + ' "' + path + '"?')) {
+                return;
+            }
+            try {
+                try {
+                    await api('delete', { path });
+                } catch (error) {
+                    if (error.status !== 409 || !confirm(path + ' is not empty.\nDelete it and all its contents?')) {
+                        throw error;
+                    }
+                    await api('delete', { path, force: '1' });
+                }
+                setStatus('Deleted ' + path);
+                if (path === current.path) {
+                    current = { path: '', hash: '', eol: '\n' };
+                    fileInput.value = '';
+                    editor.setValue('');
+                    editor.markClean();
+                    updateInfo();
+                }
+            } catch (error) {
+                setStatus(error.message, true);
+                return;
+            }
+            await listFiles(currentDir);
+        }
+
+        async function deleteCurrentFile() {
+            const path = fileInput.value.trim();
+            if (!path) {
+                setStatus('No file selected.', true);
+                return;
+            }
+            await deleteItem(path, false);
+        }
+
+        async function renameItem(path) {
+            const oldName = path.split('/').pop();
+            const newName = prompt('Rename "' + oldName + '" to:', oldName);
+            if (!newName || !newName.trim() || newName.trim() === oldName) {
+                return;
+            }
+            try {
+                const data = await api('rename', { path, name: newName.trim() });
+                setStatus('Renamed to ' + data.new);
+                if (path === current.path) {
+                    current.path = data.new;
+                    fileInput.value = data.new;
+                    setModeForFile(data.new);
+                    updateInfo();
+                }
+            } catch (error) {
+                setStatus(error.message, true);
+                return;
+            }
+            await listFiles(currentDir);
+        }
+
         function markActiveEntry() {
             document.querySelectorAll('#browser-list .file-entry').forEach(entry => {
                 entry.classList.toggle('active', entry.dataset.path === current.path);
             });
         }
 
-        function addEntry(list, label, onclick, className = '', path = '') {
+        function addEntry(list, label, onclick, className = '', path = '', isDir = false) {
             const entry = document.createElement('div');
             entry.textContent = label;
             entry.className = 'file-entry ' + className;
             entry.dataset.path = path;
             entry.onclick = onclick;
+            if (path) {
+                entry.addEventListener('contextmenu', e => {
+                    e.preventDefault();
+                    showActionDialog(e.clientX, e.clientY, path, isDir);
+                });
+                let lpTimer = 0;
+                let lpFired = false;
+                entry.addEventListener('touchstart', () => {
+                    lpFired = false;
+                    lpTimer = setTimeout(() => { lpFired = true; }, 400);
+                }, { passive: true });
+                entry.addEventListener('touchend', e => {
+                    clearTimeout(lpTimer);
+                    if (lpFired) {
+                        e.preventDefault();
+                        showActionDialog(0, 0, path, isDir);
+                        lpFired = false;
+                    }
+                });
+                entry.addEventListener('touchmove', () => { clearTimeout(lpTimer); lpFired = false; });
+                entry.addEventListener('click', e => {
+                    if (lpFired) { e.preventDefault(); e.stopPropagation(); lpFired = false; }
+                }, true);
+            }
             list.appendChild(entry);
         }
 
@@ -424,9 +597,9 @@ $cdn = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16';
                 }
                 data.entries.forEach(item => {
                     if (item.isDir) {
-                        addEntry(list, item.name + '/', () => listFiles(item.path), 'dir');
+                        addEntry(list, item.name + '/', () => listFiles(item.path), 'dir', item.path, true);
                     } else {
-                        addEntry(list, item.name, () => loadFile(item.path), '', item.path);
+                        addEntry(list, item.name, () => loadFile(item.path), '', item.path, false);
                     }
                 });
                 markActiveEntry();
@@ -491,6 +664,52 @@ $cdn = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16';
             btn.innerHTML = fb.classList.contains('collapsed') ? '&#9664;' : '&#9654;';
             setTimeout(() => editor.refresh(), 250);
         }
+
+        // Action dialog
+        let adTarget = { path: '', isDir: false };
+        const adOverlay = document.getElementById('action-overlay');
+        const adDialog = document.getElementById('action-dialog');
+        const isTouch = matchMedia('(pointer: coarse)').matches;
+
+        function showActionDialog(x, y, path, isDir) {
+            adTarget = { path, isDir };
+            document.getElementById('ad-title').textContent = path.split('/').pop();
+            adDialog.querySelector('[data-action="open"]').textContent = isDir ? 'Open folder' : 'Open in editor';
+            if (isTouch) {
+                adDialog.style.left = '';
+                adDialog.style.top = '';
+            } else {
+                adDialog.style.left = Math.min(x, window.innerWidth - 180) + 'px';
+                adDialog.style.top = Math.min(y, window.innerHeight - 140) + 'px';
+            }
+            adOverlay.style.display = 'block';
+            adDialog.style.display = 'block';
+        }
+
+        function hideActionDialog() {
+            adOverlay.style.display = 'none';
+            adDialog.style.display = 'none';
+        }
+
+        adOverlay.addEventListener('click', hideActionDialog);
+        document.addEventListener('click', e => {
+            if (!e.target.closest('#action-dialog') && !e.target.closest('.file-entry')) {
+                hideActionDialog();
+            }
+        });
+
+        adDialog.addEventListener('click', e => {
+            const action = e.target.dataset.action;
+            if (!action) return;
+            hideActionDialog();
+            if (action === 'open') {
+                adTarget.isDir ? listFiles(adTarget.path) : loadFile(adTarget.path);
+            } else if (action === 'rename') {
+                renameItem(adTarget.path);
+            } else if (action === 'delete') {
+                deleteItem(adTarget.path, adTarget.isDir);
+            }
+        });
 
         updateInfo();
         listFiles();
