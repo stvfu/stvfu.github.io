@@ -12,6 +12,20 @@
 - CSRF 防護
 - Ctrl+S 快速儲存
 
+### 媒體預覽
+
+點擊圖片、影片或音訊檔時，編輯區域會自動切換為預覽模式：
+
+- **圖片**（jpg, png, gif, webp, svg, bmp, ico, avif）→ 直接顯示
+- **影片**（mp4, webm, mov 等）→ 內嵌播放器
+- **音訊**（mp3, wav, ogg, flac 等）→ 音訊播放器
+
+切換回文字檔時自動恢復編輯器。
+
+### 檔案上傳
+
+工具列 Upload 按鈕，支援多檔案同時上傳至目前瀏覽的目錄。手機與電腦皆可使用。
+
 ### 檔案管理
 
 整合原 file_manager 功能：
@@ -31,7 +45,7 @@
 | 檔案 | 說明 |
 |------|------|
 | `index.php` | 主編輯器介面（含懷舊模式切換） |
-| `api.php` | 後端 API（load / save / list / mkdir / delete / rename） |
+| `api.php` | 後端 API（load / save / list / mkdir / delete / rename / upload） |
 | `common.php` | 共用設定、Session、CSRF、路徑工具 |
 | `login.php` | 登入頁面 |
 | `logout.php` | 登出處理 |

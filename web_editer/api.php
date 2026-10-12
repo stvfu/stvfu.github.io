@@ -136,6 +136,40 @@ switch ($action) {
         }
         respond(['deleted' => relative_path($path)]);
 
+    case 'upload':
+        $dir = resolve_path((string)($_POST['dir'] ?? ''));
+        if ($dir === null || !is_dir($dir)) {
+            fail('Invalid directory.', 404);
+        }
+        if (empty($_FILES['files'])) {
+            fail('No files uploaded.');
+        }
+        $files = $_FILES['files'];
+        $saved = [];
+        $errors = [];
+        for ($i = 0; $i < count($files['name']); $i++) {
+            if ($files['error'][$i] !== UPLOAD_ERR_OK) {
+                $errors[] = $files['name'][$i] . ': upload error ' . $files['error'][$i];
+                continue;
+            }
+            $name = basename($files['name'][$i]);
+            if ($name === '' || $name === '.' || $name === '..') {
+                $errors[] = $files['name'][$i] . ': invalid name';
+                continue;
+            }
+            $dest = $dir . '/' . $name;
+            if (file_exists($dest) && empty($_POST['overwrite'])) {
+                $errors[] = $name . ': already exists';
+                continue;
+            }
+            if (!move_uploaded_file($files['tmp_name'][$i], $dest)) {
+                $errors[] = $name . ': failed to save (permission denied?)';
+                continue;
+            }
+            $saved[] = relative_path($dest);
+        }
+        respond(['saved' => $saved, 'errors' => $errors]);
+
     case 'rename':
         $oldPath = resolve_path((string)($_POST['path'] ?? ''));
         if ($oldPath === null || $oldPath === BASE_DIR) {

@@ -106,6 +106,28 @@ $cdn = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16';
             height: 100%;
             width: 100%;
         }
+        #preview-container {
+            display: none;
+            height: 100%;
+            width: 100%;
+            overflow: auto;
+            background: #1e1e1e;
+            justify-content: center;
+            align-items: center;
+        }
+        #preview-container img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        #preview-container video,
+        #preview-container audio {
+            max-width: 100%;
+            max-height: 100%;
+        }
+        body.classic #preview-container {
+            background: #f0f0f0;
+        }
         .file-entry {
             cursor: pointer;
             padding: 4px 8px;
@@ -273,6 +295,8 @@ $cdn = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16';
         <button onclick="convertTabsToSpaces()">Tab to Space</button>
         <button onclick="removeTrailingSpaces()">No tail Space</button>
         <button onclick="openExternalLink()">Open Link</button>
+        <button onclick="document.getElementById('upload-input').click()">Upload</button>
+        <input type="file" id="upload-input" multiple style="display:none" onchange="uploadFiles(this.files)">
         <button id="btn-classic" onclick="toggleClassic()" title="Toggle classic v2 style">Classic</button>
         <form method="post" action="logout.php">
             <input type="hidden" name="csrf" value="<?= htmlspecialchars(csrf_token()) ?>">
@@ -282,6 +306,7 @@ $cdn = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16';
     <div id="main-container">
         <div id="editor-container">
             <textarea id="textbox_code"></textarea>
+            <div id="preview-container"></div>
         </div>
         <div id="toggle-browser" onclick="toggleFileBrowser()" title="Toggle file browser">&#9654;</div>
         <div id="file-browser">
@@ -377,11 +402,63 @@ $cdn = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16';
             }
         }
 
+        const IMAGE_EXT = /\.(jpe?g|png|gif|webp|svg|bmp|ico|avif)$/i;
+        const VIDEO_EXT = /\.(mp4|webm|mov|avi|mkv|ogv)$/i;
+        const AUDIO_EXT = /\.(mp3|wav|ogg|flac|aac|m4a)$/i;
+        const preview = document.getElementById('preview-container');
+        const cmWrapper = document.querySelector('.CodeMirror');
+        let previewing = false;
+
+        function fileUrl(path) {
+            return '../' + path.split('/').map(encodeURIComponent).join('/');
+        }
+
+        function showPreview(path) {
+            const url = fileUrl(path);
+            let html = '';
+            if (IMAGE_EXT.test(path)) {
+                html = '<img src="' + url + '">';
+            } else if (VIDEO_EXT.test(path)) {
+                html = '<video src="' + url + '" controls autoplay></video>';
+            } else if (AUDIO_EXT.test(path)) {
+                html = '<audio src="' + url + '" controls autoplay></audio>';
+            }
+            preview.innerHTML = html;
+            preview.style.display = 'flex';
+            cmWrapper.style.display = 'none';
+            previewing = true;
+            current = { path, hash: '', eol: '\n' };
+            fileInput.value = path;
+            editor.markClean();
+            setStatus('Preview: ' + path);
+            updateInfo();
+            markActiveEntry();
+        }
+
+        function hidePreview() {
+            if (!previewing) return;
+            preview.innerHTML = '';
+            preview.style.display = 'none';
+            cmWrapper.style.display = '';
+            previewing = false;
+            setTimeout(() => editor.refresh(), 50);
+        }
+
+        function isMediaFile(path) {
+            return IMAGE_EXT.test(path) || VIDEO_EXT.test(path) || AUDIO_EXT.test(path);
+        }
+
         async function loadFile(path = fileInput.value.trim()) {
             if (!path || !confirmDiscard()) {
                 fileInput.value = current.path;
                 return;
             }
+            if (isMediaFile(path)) {
+                hidePreview();
+                showPreview(path);
+                return;
+            }
+            hidePreview();
             const seq = ++loadSeq;
             setStatus('Loading ' + path + ' ...');
             try {
@@ -538,6 +615,39 @@ $cdn = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16';
                 setStatus(error.message, true);
                 return;
             }
+            await listFiles(currentDir);
+        }
+
+        async function uploadFiles(fileList) {
+            if (!fileList || fileList.length === 0) return;
+            const form = new FormData();
+            form.append('action', 'upload');
+            form.append('dir', currentDir);
+            for (let i = 0; i < fileList.length; i++) {
+                form.append('files[]', fileList[i]);
+            }
+            setStatus('Uploading ' + fileList.length + ' file(s)...');
+            try {
+                const response = await fetch('api.php', {
+                    method: 'POST',
+                    headers: { 'X-CSRF-Token': CSRF_TOKEN },
+                    body: form
+                });
+                if (response.status === 401) {
+                    window.location.href = 'login.php';
+                }
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || 'Upload failed');
+                }
+                const msgs = [];
+                if (data.saved.length) msgs.push(data.saved.length + ' uploaded');
+                if (data.errors.length) msgs.push(data.errors.join('; '));
+                setStatus(msgs.join(' | '), data.errors.length > 0);
+            } catch (error) {
+                setStatus(error.message, true);
+            }
+            document.getElementById('upload-input').value = '';
             await listFiles(currentDir);
         }
 
