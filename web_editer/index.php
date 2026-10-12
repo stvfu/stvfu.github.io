@@ -27,6 +27,7 @@ $cdn = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16';
     <script src="<?= $cdn ?>/addon/edit/matchbrackets.min.js"></script>
     <script src="<?= $cdn ?>/addon/selection/active-line.min.js"></script>
     <style>
+        /* ===== Modern (default) ===== */
         * {
             box-sizing: border-box;
         }
@@ -130,6 +131,71 @@ $cdn = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16';
         #status-bar.error #status-msg {
             color: #f92672;
         }
+
+        /* ===== Classic (web_editer2 nostalgia) ===== */
+        body.classic {
+            background: #fff;
+            color: #000;
+            font-family: initial;
+            font-size: initial;
+        }
+        body.classic #control-panel {
+            height: 40px;
+            padding: 10px;
+            background: #333;
+            color: #fff;
+            flex-wrap: nowrap;
+            gap: 0;
+        }
+        body.classic #main-container {
+            flex: none;
+            height: calc(100vh - 100px);
+        }
+        body.classic #editor-container {
+            width: 70%;
+            flex: none;
+            padding: 10px;
+            overflow-y: auto;
+        }
+        body.classic #file-browser {
+            width: 30%;
+            max-width: none;
+            padding: 10px;
+            border-left: 1px solid #ccc;
+            transition: none;
+        }
+        body.classic #file-browser.collapsed {
+            width: 30%;
+            max-width: none;
+            overflow-y: auto;
+            border-left: 1px solid #ccc;
+        }
+        body.classic #toggle-browser {
+            display: none;
+        }
+        body.classic #browser-dir {
+            display: none;
+        }
+        body.classic .file-entry {
+            padding: 5px;
+            color: #000;
+        }
+        body.classic .file-entry.dir {
+            color: #000;
+        }
+        body.classic .file-entry:hover {
+            background-color: #ddd;
+        }
+        body.classic .file-entry.active {
+            background-color: #bde;
+        }
+        body.classic #status-bar {
+            display: none;
+        }
+        body.classic #btn-classic {
+            background: #666;
+            color: #fff;
+        }
     </style>
 </head>
 <body>
@@ -141,6 +207,7 @@ $cdn = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16';
         <button onclick="convertTabsToSpaces()">Tab to Space</button>
         <button onclick="removeTrailingSpaces()">No tail Space</button>
         <button onclick="openExternalLink()">Open Link</button>
+        <button id="btn-classic" onclick="toggleClassic()" title="Toggle classic v2 style">Classic</button>
         <form method="post" action="logout.php">
             <input type="hidden" name="csrf" value="<?= htmlspecialchars(csrf_token()) ?>">
             <button type="submit">Logout</button>
@@ -176,11 +243,18 @@ $cdn = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16';
             styleActiveLine: true
         });
 
-        // 目前開啟的檔案:path 為空代表尚未開檔,hash 用來偵測檔案是否在別處被改過
         let current = { path: '', hash: '', eol: '\n' };
         let currentDir = '';
         let loadSeq = 0;
         let listSeq = 0;
+
+        // Classic mode toggle
+        function toggleClassic() {
+            document.body.classList.toggle('classic');
+            try { localStorage.setItem('web_editer_classic', document.body.classList.contains('classic') ? '1' : ''); } catch(e) {}
+            setTimeout(() => editor.refresh(), 50);
+        }
+        try { if (localStorage.getItem('web_editer_classic') === '1') document.body.classList.add('classic'); } catch(e) {}
 
         function setStatus(message, isError = false) {
             document.getElementById('status-msg').textContent = message;
@@ -240,7 +314,7 @@ $cdn = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16';
             try {
                 const data = await api('load', { path });
                 if (seq !== loadSeq) {
-                    return; // 已經點了別的檔案
+                    return;
                 }
                 current = {
                     path: data.path,
@@ -250,7 +324,7 @@ $cdn = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16';
                 fileInput.value = data.path;
                 setModeForFile(data.path);
                 editor.setValue(data.content);
-                editor.clearHistory(); // 否則 Ctrl+Z 會退回上一個檔案的內容
+                editor.clearHistory();
                 editor.markClean();
                 editor.focus();
                 setStatus('Loaded ' + data.path + (data.writable ? '' : ' (read-only on server)'), !data.writable);
@@ -273,7 +347,6 @@ $cdn = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16';
             const params = {
                 path,
                 content: editor.getValue(current.eol),
-                // 存到別的檔名時不帶 hash,若該檔已存在伺服器會回 409
                 hash: path === current.path ? current.hash : ''
             };
             setStatus('Saving ' + path + ' ...');
@@ -345,7 +418,6 @@ $cdn = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16';
                 document.getElementById('browser-dir').textContent = '/' + data.dir;
                 const list = document.getElementById('browser-list');
                 list.innerHTML = '';
-                // Add a link to go up one directory level
                 if (data.dir !== '') {
                     const parentDir = data.dir.split('/').slice(0, -1).join('/');
                     addEntry(list, '../', () => listFiles(parentDir), 'dir');
@@ -363,7 +435,6 @@ $cdn = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16';
             }
         }
 
-        // 逐行替換,保留游標位置,且整個動作只算一步 undo
         function replaceInLines(pattern, replacement) {
             editor.operation(() => {
                 for (let i = 0; i < editor.lineCount(); i++) {
@@ -390,7 +461,6 @@ $cdn = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16';
                 setStatus('Please enter a file name.', true);
                 return;
             }
-            // 只編碼斜線以外的字元;檔案根目錄是本頁的上一層
             const safeFileName = fileName.split('/').map(encodeURIComponent).join('/');
             window.open(new URL('../' + safeFileName, window.location.href), '_blank');
         }

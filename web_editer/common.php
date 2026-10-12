@@ -4,7 +4,7 @@ declare(strict_types=1);
 define('BASE_DIR', realpath(__DIR__ . '/..'));
 define('MAX_FILE_SIZE', 2 * 1024 * 1024);
 
-session_name('web_editer3');
+session_name('web_editer');
 session_set_cookie_params([
     'httponly' => true,
     'samesite' => 'Strict',
