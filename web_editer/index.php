@@ -68,6 +68,10 @@ $cdn = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16';
             margin: 0 3px;
             flex-shrink: 0;
         }
+        #control-panel button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
         #control-panel form {
             margin: 0;
         }
@@ -309,7 +313,7 @@ $cdn = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16';
         <div class="toolbar-row">
             <input type="text" id="textbox_file" placeholder="Enter file name...">
             <button onclick="loadFile()">Load</button>
-            <button onclick="saveFile()" title="Ctrl+S">Save</button>
+            <button id="btn-save" onclick="saveFile()" title="Ctrl+S">Save</button>
             <span class="tb-sep"></span>
             <button onclick="openExternalLink()">Open Link</button>
         </div>
@@ -320,8 +324,8 @@ $cdn = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16';
             <button onclick="deleteCurrentFile()">Delete</button>
             <input type="file" id="upload-input" multiple style="display:none" onchange="uploadFiles(this.files)">
             <span class="tb-sep"></span>
-            <button onclick="convertTabsToSpaces()">Tab to Space</button>
-            <button onclick="removeTrailingSpaces()">No tail Space</button>
+            <button id="btn-tab" onclick="convertTabsToSpaces()">Tab to Space</button>
+            <button id="btn-trail" onclick="removeTrailingSpaces()">No tail Space</button>
             <span class="tb-sep"></span>
             <button id="btn-classic" onclick="toggleClassic()" title="Toggle classic v2 style">Classic</button>
             <form method="post" action="logout.php">
@@ -440,6 +444,12 @@ $cdn = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16';
             return '../' + path.split('/').map(encodeURIComponent).join('/');
         }
 
+        function setEditButtons(disabled) {
+            document.getElementById('btn-save').disabled = disabled;
+            document.getElementById('btn-tab').disabled = disabled;
+            document.getElementById('btn-trail').disabled = disabled;
+        }
+
         function showPreview(path) {
             const url = fileUrl(path);
             let html = '';
@@ -454,6 +464,7 @@ $cdn = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16';
             preview.style.display = 'flex';
             cmWrapper.style.display = 'none';
             previewing = true;
+            setEditButtons(true);
             current = { path, hash: '', eol: '\n' };
             fileInput.value = path;
             editor.markClean();
@@ -468,6 +479,7 @@ $cdn = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16';
             preview.style.display = 'none';
             cmWrapper.style.display = '';
             previewing = false;
+            setEditButtons(false);
             setTimeout(() => editor.refresh(), 50);
         }
 
@@ -783,7 +795,7 @@ $cdn = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16';
         document.addEventListener('keydown', event => {
             if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
                 event.preventDefault();
-                saveFile();
+                if (!previewing) saveFile();
             }
         });
         editor.on('changes', updateInfo);
