@@ -147,6 +147,14 @@ details.thinking div { white-space: pre-wrap; border-left: 2px solid var(--borde
 }
 .ctx-menu button:hover { background: var(--user); }
 .ctx-menu[hidden] { display: none; }
+.msg.editing { max-width: 85%; }
+.edit-input {
+    width: 100%; min-height: 60px; max-height: 40vh; resize: vertical;
+    font: inherit; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 10px; line-height: 1.5;
+}
+.edit-input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.edit-actions { display: flex; gap: 8px; margin-top: 8px; justify-content: flex-end; }
 .cursor::after { content: "▍"; color: var(--accent); animation: blink 1s steps(2) infinite; }
 @keyframes blink { 50% { opacity: 0; } }
 footer { border-top: 1px solid var(--border); background: var(--panel); padding: 12px 16px; }
@@ -786,11 +794,13 @@ footer button { height: 44px; min-width: 72px; }
             const content = messages[idx]?.content || msgEl.textContent;
             navigator.clipboard.writeText(content).catch(() => {});
         });
+        mkBtn('編輯', () => editMessage(idx, isUser));
         if (isUser) {
             mkBtn('重新送出', () => resendMessage(idx));
         } else {
             mkBtn('重新產生', () => regenerateMessage(idx));
         }
+        mkBtn('刪除', () => deleteFromMessage(idx, isUser));
 
         ctxMenu.hidden = false;
         const rect = ctxMenu.getBoundingClientRect();
@@ -822,6 +832,81 @@ footer button { height: 44px; min-width: 72px; }
         els.input.value = content;
         autoGrow();
         send();
+    }
+
+    async function deleteFromMessage(idx, isUser) {
+        if (controller) return;
+        const keep = isUser ? idx : idx - 1 >= 0 && messages[idx - 1]?.role === 'user' ? idx - 1 : idx;
+        const count = messages.length - keep;
+        if (!confirm(`確定要刪除${count > 1 ? '這 ' + count + ' 則訊息' : '這則訊息'}嗎？`)) return;
+        messages = messages.slice(0, keep);
+        if (activeId) {
+            await convApi('truncate', { id: activeId, keep });
+            if (!messages.length) {
+                const conv = convList.find(c => c.id === activeId);
+                if (conv) conv.title = '新對話';
+                renderSidebar();
+            }
+        }
+        renderAll();
+        saveSettings();
+    }
+
+    async function editMessage(idx, isUser) {
+        if (controller) return;
+        const content = messages[idx].content;
+        const msgEl = document.querySelector(`.msg[data-idx="${idx}"]`);
+        if (!msgEl) return;
+
+        const originalHTML = msgEl.innerHTML;
+        const originalClass = msgEl.className;
+        msgEl.className = (isUser ? 'msg user' : 'msg assistant') + ' editing';
+        msgEl.innerHTML = '';
+
+        const textarea = document.createElement('textarea');
+        textarea.className = 'edit-input';
+        textarea.value = content;
+        msgEl.appendChild(textarea);
+
+        const actions = document.createElement('div');
+        actions.className = 'edit-actions';
+        const cancelBtn = document.createElement('button');
+        cancelBtn.textContent = '取消';
+        cancelBtn.addEventListener('click', () => {
+            msgEl.className = originalClass;
+            msgEl.innerHTML = originalHTML;
+        });
+        const confirmBtn = document.createElement('button');
+        confirmBtn.className = 'primary';
+        confirmBtn.textContent = isUser ? '送出' : '儲存';
+        confirmBtn.addEventListener('click', async () => {
+            const val = textarea.value.trim();
+            if (!val) return;
+            if (isUser) {
+                messages = messages.slice(0, idx);
+                if (activeId) await convApi('truncate', { id: activeId, keep: idx });
+                renderAll();
+                els.input.value = val;
+                autoGrow();
+                send();
+            } else {
+                messages[idx].content = val;
+                messages = messages.slice(0, idx + 1);
+                if (activeId) {
+                    await convApi('truncate', { id: activeId, keep: idx });
+                    await convApi('append', { id: activeId, role: 'assistant', content: val });
+                }
+                renderAll();
+                saveSettings();
+            }
+        });
+        actions.appendChild(cancelBtn);
+        actions.appendChild(confirmBtn);
+        msgEl.appendChild(actions);
+
+        textarea.focus();
+        textarea.style.height = 'auto';
+        textarea.style.height = textarea.scrollHeight + 2 + 'px';
     }
 
     let pressTimer = null, pressPos = null;
