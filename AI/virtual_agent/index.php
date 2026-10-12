@@ -250,6 +250,7 @@ footer button { height: 44px; min-width: 72px; }
             <input type="checkbox" id="adminMode"> 管理員
         </label>
         <span class="spacer"></span>
+        <button type="button" onclick="location.href='multi.php'">Multi-Agent</button>
         <button type="button" id="newChat">新對話</button>
         <form method="post" action="index.php">
             <input type="hidden" name="action" value="logout">
