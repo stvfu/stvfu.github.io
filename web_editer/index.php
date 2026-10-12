@@ -42,16 +42,31 @@ $cdn = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16';
             font-size: 14px;
         }
         #control-panel {
-            padding: 8px 10px;
             background: #333;
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+        .toolbar-row {
+            padding: 6px 10px;
             display: flex;
             flex-wrap: wrap;
             align-items: center;
-            gap: 6px;
+            gap: 5px;
+        }
+        .toolbar-row + .toolbar-row {
+            border-top: 1px solid #444;
         }
         #textbox_file {
             flex: 1;
-            min-width: 180px;
+            min-width: 120px;
+        }
+        .tb-sep {
+            width: 1px;
+            height: 18px;
+            background: #555;
+            margin: 0 3px;
+            flex-shrink: 0;
         }
         #control-panel form {
             margin: 0;
@@ -214,16 +229,21 @@ $cdn = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16';
             font-size: initial;
         }
         body.classic #control-panel {
-            height: 40px;
-            padding: 10px;
             background: #333;
             color: #fff;
-            flex-wrap: nowrap;
-            gap: 0;
+        }
+        body.classic .toolbar-row {
+            padding: 5px 10px;
+        }
+        body.classic .toolbar-row + .toolbar-row {
+            border-top-color: #555;
+        }
+        body.classic .tb-sep {
+            background: #666;
         }
         body.classic #main-container {
             flex: none;
-            height: calc(100vh - 100px);
+            height: calc(100vh - 110px);
         }
         body.classic #editor-container {
             width: 70%;
@@ -286,22 +306,29 @@ $cdn = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16';
 </head>
 <body>
     <div id="control-panel">
-        <input type="text" id="textbox_file" placeholder="Enter file name...">
-        <button onclick="loadFile()">Load</button>
-        <button onclick="saveFile()" title="Ctrl+S">Save</button>
-        <button onclick="newFile()">New</button>
-        <button onclick="newFolder()">Mkdir</button>
-        <button onclick="deleteCurrentFile()">Delete</button>
-        <button onclick="convertTabsToSpaces()">Tab to Space</button>
-        <button onclick="removeTrailingSpaces()">No tail Space</button>
-        <button onclick="openExternalLink()">Open Link</button>
-        <button onclick="document.getElementById('upload-input').click()">Upload</button>
-        <input type="file" id="upload-input" multiple style="display:none" onchange="uploadFiles(this.files)">
-        <button id="btn-classic" onclick="toggleClassic()" title="Toggle classic v2 style">Classic</button>
-        <form method="post" action="logout.php">
-            <input type="hidden" name="csrf" value="<?= htmlspecialchars(csrf_token()) ?>">
-            <button type="submit">Logout</button>
-        </form>
+        <div class="toolbar-row">
+            <input type="text" id="textbox_file" placeholder="Enter file name...">
+            <button onclick="loadFile()">Load</button>
+            <button onclick="saveFile()" title="Ctrl+S">Save</button>
+            <span class="tb-sep"></span>
+            <button onclick="openExternalLink()">Open Link</button>
+        </div>
+        <div class="toolbar-row">
+            <button onclick="newFile()">New</button>
+            <button onclick="newFolder()">Mkdir</button>
+            <button onclick="document.getElementById('upload-input').click()">Upload</button>
+            <button onclick="deleteCurrentFile()">Delete</button>
+            <input type="file" id="upload-input" multiple style="display:none" onchange="uploadFiles(this.files)">
+            <span class="tb-sep"></span>
+            <button onclick="convertTabsToSpaces()">Tab to Space</button>
+            <button onclick="removeTrailingSpaces()">No tail Space</button>
+            <span class="tb-sep"></span>
+            <button id="btn-classic" onclick="toggleClassic()" title="Toggle classic v2 style">Classic</button>
+            <form method="post" action="logout.php">
+                <input type="hidden" name="csrf" value="<?= htmlspecialchars(csrf_token()) ?>">
+                <button type="submit">Logout</button>
+            </form>
+        </div>
     </div>
     <div id="main-container">
         <div id="editor-container">
