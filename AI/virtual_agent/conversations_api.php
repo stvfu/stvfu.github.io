@@ -146,6 +146,31 @@ switch ($action) {
         echo json_encode(['ok' => true, 'count' => count($convs)]);
         break;
 
+    case 'truncate':
+        $id = $input['id'] ?? '';
+        $keep = (int) ($input['keep'] ?? 0);
+        if ($keep < 0) {
+            http_response_code(400);
+            echo json_encode(['error' => '參數錯誤']);
+            break;
+        }
+        $db->beginTransaction();
+        if ($keep === 0) {
+            $db->prepare('DELETE FROM messages WHERE conv_id = ?')->execute([$id]);
+        } else {
+            $stmt = $db->prepare('SELECT id FROM messages WHERE conv_id = ? ORDER BY id LIMIT 1 OFFSET ?');
+            $stmt->execute([$id, $keep]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($row) {
+                $db->prepare('DELETE FROM messages WHERE conv_id = ? AND id >= ?')->execute([$id, $row['id']]);
+            }
+        }
+        $now = time();
+        $db->prepare('UPDATE conversations SET updated = ? WHERE id = ?')->execute([$now, $id]);
+        $db->commit();
+        echo json_encode(['ok' => true]);
+        break;
+
     default:
         http_response_code(400);
         echo json_encode(['error' => '未知操作']);

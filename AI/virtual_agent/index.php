@@ -118,7 +118,7 @@ header form { margin: 0; }
 #chat { flex: 1; overflow-y: auto; padding: 20px 16px; }
 #chat .inner { max-width: 800px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
 .empty { color: var(--muted); text-align: center; margin-top: 18vh; }
-.msg { min-width: 0; overflow-wrap: anywhere; }
+.msg { min-width: 0; overflow-wrap: anywhere; -webkit-touch-callout: none; }
 .msg.user { align-self: flex-end; max-width: 85%; background: var(--user); border-radius: 14px; padding: 10px 14px; white-space: pre-wrap; }
 .msg.assistant > .body > :first-child { margin-top: 0; }
 .msg.assistant > .body > :last-child { margin-bottom: 0; }
@@ -136,6 +136,17 @@ details.thinking summary { cursor: pointer; }
 details.thinking div { white-space: pre-wrap; border-left: 2px solid var(--border); padding-left: 10px; margin-top: 6px; }
 .meta { color: var(--muted); font-size: 12px; margin-top: 6px; }
 .notice { color: var(--error); font-size: 14px; margin-top: 6px; }
+.ctx-menu {
+    position: fixed; z-index: 200; background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px; padding: 4px 0; box-shadow: 0 4px 16px rgba(0,0,0,.18);
+    min-width: 130px;
+}
+.ctx-menu button {
+    display: block; width: 100%; text-align: left; border: none; background: none;
+    padding: 10px 16px; font-size: 15px; border-radius: 0;
+}
+.ctx-menu button:hover { background: var(--user); }
+.ctx-menu[hidden] { display: none; }
 .cursor::after { content: "▍"; color: var(--accent); animation: blink 1s steps(2) infinite; }
 @keyframes blink { 50% { opacity: 0; } }
 footer { border-top: 1px solid var(--border); background: var(--panel); padding: 12px 16px; }
@@ -215,11 +226,14 @@ footer button { height: 44px; min-width: 72px; }
         <button type="button" id="menuToggle" title="對話列表">☰</button>
         <h1 id="appTitle">AI 對話</h1>
         <label>模型
-            <select id="model">
-                <?php foreach (MODELS as $id => $m): ?>
-                <option value="<?= h($id) ?>" data-adaptive="<?= $m['adaptive'] ? '1' : '0' ?>"<?= $id === DEFAULT_MODEL ? ' selected' : '' ?>><?= h($m['label']) ?></option>
+            <select id="provider">
+                <?php foreach (PROVIDERS as $pid => $pname): ?>
+                <option value="<?= h($pid) ?>"><?= h($pname) ?></option>
                 <?php endforeach; ?>
             </select>
+        </label>
+        <label>版本
+            <select id="model"></select>
         </label>
         <label>思考強度
             <select id="effort">
@@ -263,10 +277,16 @@ footer button { height: 44px; min-width: 72px; }
 (() => {
     const CSRF = <?= json_encode($_SESSION['csrf']) ?>;
     const STATUS = <?= json_encode([
-        'apiKey'   => api_key($config) !== '',
-        'cliBin'   => cli_ready($config),
-        'cliToken' => ($config['claude_oauth_token'] ?? '') !== '',
+        'apiKey'     => api_key($config) !== '',
+        'cliBin'     => cli_ready($config),
+        'cliToken'   => ($config['claude_oauth_token'] ?? '') !== '',
+        'openaiKey'  => openai_api_key($config) !== '',
+        'xaiKey'     => xai_api_key($config) !== '',
     ]) ?>;
+    const ALL_MODELS = <?= json_encode(array_map(fn($m) => [
+        'version' => $m['version'], 'adaptive' => $m['adaptive'], 'provider' => $m['provider'],
+    ], MODELS), JSON_UNESCAPED_UNICODE) ?>;
+    const DEFAULT_MODEL_ID = <?= json_encode(DEFAULT_MODEL) ?>;
     const SETTINGS_KEY = 'virtual_agent_settings';
     const STOP_NOTICES = {
         max_tokens: '回覆已達長度上限而中斷，可以輸入「繼續」請它接著寫。',
@@ -303,7 +323,7 @@ footer button { height: 44px; min-width: 72px; }
 
     const $ = id => document.getElementById(id);
     const els = {
-        model: $('model'), effort: $('effort'), system: $('system'), systemWrap: $('systemWrap'),
+        provider: $('provider'), model: $('model'), effort: $('effort'), system: $('system'), systemWrap: $('systemWrap'),
         systemToggle: $('systemToggle'), newChat: $('newChat'), chat: $('chat'),
         apiMode: $('apiMode'), adminMode: $('adminMode'), banner: $('banner'),
         messages: $('messages'), input: $('input'), send: $('send'),
@@ -344,7 +364,11 @@ footer button { height: 44px; min-width: 72px; }
         try {
             const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null');
             if (!s) return;
-            if ([...els.model.options].some(o => o.value === s.model)) els.model.value = s.model;
+            const modelInfo = ALL_MODELS[s.model];
+            if (modelInfo) {
+                els.provider.value = modelInfo.provider;
+                populateModels(modelInfo.provider, s.model);
+            }
             if ([...els.effort.options].some(o => o.value === s.effort)) els.effort.value = s.effort;
             els.system.value = s.system || '';
             els.apiMode.checked = !!s.apiMode;
@@ -464,16 +488,18 @@ footer button { height: 44px; min-width: 72px; }
     }
     function scrollDown() { els.chat.scrollTop = els.chat.scrollHeight; }
 
-    function addUser(text) {
+    function addUser(text, idx) {
         const div = document.createElement('div');
         div.className = 'msg user';
+        if (idx !== undefined) div.dataset.idx = idx;
         div.textContent = text;
         els.messages.appendChild(div);
         return div;
     }
-    function addAssistant(text) {
+    function addAssistant(text, idx) {
         const div = document.createElement('div');
         div.className = 'msg assistant';
+        if (idx !== undefined) div.dataset.idx = idx;
         const body = document.createElement('div');
         body.className = 'body';
         div.appendChild(body);
@@ -493,25 +519,59 @@ footer button { height: 44px; min-width: 72px; }
             addLine(els.messages, 'empty', '選擇模型後，在下方輸入訊息開始對話。');
             return;
         }
-        for (const m of messages) m.role === 'user' ? addUser(m.content) : addAssistant(m.content);
+        for (let i = 0; i < messages.length; i++) {
+            const m = messages[i];
+            m.role === 'user' ? addUser(m.content, i) : addAssistant(m.content, i);
+        }
         scrollDown();
     }
 
+    function populateModels(provider, selectModelId) {
+        els.model.innerHTML = '';
+        let first = null;
+        for (const [id, m] of Object.entries(ALL_MODELS)) {
+            if (m.provider !== provider) continue;
+            if (!first) first = id;
+            const opt = document.createElement('option');
+            opt.value = id;
+            opt.textContent = m.version;
+            els.model.appendChild(opt);
+        }
+        if (selectModelId && [...els.model.options].some(o => o.value === selectModelId)) {
+            els.model.value = selectModelId;
+        } else if (first) {
+            els.model.value = first;
+        }
+    }
     function syncEffort() {
-        const adaptive = els.model.selectedOptions[0].dataset.adaptive === '1';
+        const modelInfo = ALL_MODELS[els.model.value];
+        const adaptive = modelInfo ? modelInfo.adaptive : false;
         els.effort.disabled = !adaptive;
         els.effort.title = adaptive ? '' : '此模型不支援調整思考強度';
     }
     function syncAdmin() {
-        const disabled = els.apiMode.checked;
+        const provider = getProvider(els.model.value);
+        const disabled = els.apiMode.checked || provider !== 'claude';
         els.adminMode.disabled = disabled;
         if (disabled) els.adminMode.checked = false;
         els.adminMode.parentElement.title = disabled
-            ? '管理員模式僅限訂閱模式使用' : '開啟後 Claude 可操作 server 檔案與執行指令';
+            ? '管理員模式僅限 Claude 訂閱模式使用' : '開啟後 Claude 可操作 server 檔案與執行指令';
     }
     function syncMode() {
+        const provider = getProvider(els.model.value);
+        const nonClaude = provider !== 'claude';
+        els.apiMode.disabled = nonClaude;
+        if (nonClaude) els.apiMode.checked = false;
+        els.apiMode.parentElement.title = nonClaude ? '非 Claude 模型固定使用 API 模式' : '';
+
         let msg = '';
-        if (els.apiMode.checked) {
+        if (nonClaude) {
+            const keyMap = { openai: STATUS.openaiKey, grok: STATUS.xaiKey };
+            if (!(keyMap[provider] ?? false)) {
+                const nameMap = { openai: 'OpenAI', grok: 'xAI', gemini: 'Google' };
+                msg = (nameMap[provider] || provider) + ' API 金鑰尚未設定：請在伺服器上的 config.php 填入對應的 api_key。';
+            }
+        } else if (els.apiMode.checked) {
             if (!STATUS.apiKey) msg = 'API 模式尚未設定金鑰：請在伺服器上的 config.php 填入 api_key，或取消勾選「API 模式」。';
         } else if (!STATUS.cliBin) {
             msg = '訂閱模式尚未就緒：網頁服務無法執行 server 上的 claude（請確認 config.php 的 claude_bin）。';
@@ -540,7 +600,7 @@ footer button { height: 44px; min-width: 72px; }
 
         if (!messages.length) els.messages.innerHTML = '';
         messages.push({ role: 'user', content: text });
-        const userDiv = addUser(text);
+        const userDiv = addUser(text, messages.length - 1);
         els.input.value = '';
         autoGrow();
 
@@ -588,7 +648,7 @@ footer button { height: 44px; min-width: 72px; }
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
                 body: JSON.stringify({
-                    mode: els.apiMode.checked ? 'api' : 'cli',
+                    mode: (getProvider(els.model.value) !== 'claude' || els.apiMode.checked) ? 'api' : 'cli',
                     model: els.model.value, effort: els.effort.value,
                     system: els.system.value, messages,
                     admin: els.adminMode.checked,
@@ -626,6 +686,7 @@ footer button { height: 44px; min-width: 72px; }
         if (answer) {
             renderMarkdown(body, answer);
             messages.push({ role: 'assistant', content: answer });
+            div.dataset.idx = messages.length - 1;
             try {
                 const r1 = await convApi('append', { id: activeId, role: 'user', content: text });
                 const r2 = await convApi('append', { id: activeId, role: 'assistant', content: answer });
@@ -643,6 +704,7 @@ footer button { height: 44px; min-width: 72px; }
             renderSidebar();
         } else {
             messages.pop();
+            delete userDiv.dataset.idx;
             body.remove();
             userDiv.style.opacity = '.55';
             if (!els.input.value) { els.input.value = text; autoGrow(); }
@@ -670,7 +732,11 @@ footer button { height: 44px; min-width: 72px; }
         }
     });
     els.input.addEventListener('input', autoGrow);
-    els.model.addEventListener('change', () => { syncEffort(); applyTheme(els.model.value); saveSettings(); });
+    els.provider.addEventListener('change', () => {
+        populateModels(els.provider.value);
+        syncEffort(); syncMode(); syncAdmin(); applyTheme(els.model.value); saveSettings();
+    });
+    els.model.addEventListener('change', () => { syncEffort(); syncMode(); syncAdmin(); applyTheme(els.model.value); saveSettings(); });
     els.effort.addEventListener('change', saveSettings);
     els.apiMode.addEventListener('change', () => { syncMode(); syncAdmin(); saveSettings(); });
     els.adminMode.addEventListener('change', () => { syncAdmin(); saveSettings(); });
@@ -684,8 +750,112 @@ footer button { height: 44px; min-width: 72px; }
     els.menuToggle.addEventListener('click', toggleSidebar);
     els.overlay.addEventListener('click', closeSidebar);
 
+    // ---- 長按選單 ----
+    const ctxMenu = document.createElement('div');
+    ctxMenu.className = 'ctx-menu';
+    ctxMenu.hidden = true;
+    document.body.appendChild(ctxMenu);
+
+    function getMsgEl(el) { return el.closest('.msg.user, .msg.assistant'); }
+
+    function showCtxMenu(msgEl, x, y) {
+        if (controller) return;
+        const isUser = msgEl.classList.contains('user');
+        const idx = parseInt(msgEl.dataset.idx, 10);
+        if (isNaN(idx)) return;
+
+        ctxMenu.innerHTML = '';
+        const mkBtn = (label, fn) => {
+            const b = document.createElement('button');
+            b.textContent = label;
+            b.addEventListener('click', () => { hideCtxMenu(); fn(); });
+            ctxMenu.appendChild(b);
+        };
+        mkBtn('複製', () => {
+            const content = messages[idx]?.content || msgEl.textContent;
+            navigator.clipboard.writeText(content).catch(() => {});
+        });
+        if (isUser) {
+            mkBtn('重新送出', () => resendMessage(idx));
+        } else {
+            mkBtn('重新產生', () => regenerateMessage(idx));
+        }
+
+        ctxMenu.hidden = false;
+        const rect = ctxMenu.getBoundingClientRect();
+        ctxMenu.style.left = Math.max(8, Math.min(x, window.innerWidth - rect.width - 8)) + 'px';
+        ctxMenu.style.top = Math.max(8, Math.min(y, window.innerHeight - rect.height - 8)) + 'px';
+    }
+
+    function hideCtxMenu() { ctxMenu.hidden = true; }
+
+    async function resendMessage(idx) {
+        if (controller) return;
+        const content = messages[idx].content;
+        messages = messages.slice(0, idx);
+        if (activeId) await convApi('truncate', { id: activeId, keep: idx });
+        renderAll();
+        els.input.value = content;
+        autoGrow();
+        send();
+    }
+
+    async function regenerateMessage(idx) {
+        if (controller) return;
+        const userIdx = idx - 1;
+        if (userIdx < 0 || messages[userIdx]?.role !== 'user') return;
+        const content = messages[userIdx].content;
+        messages = messages.slice(0, userIdx);
+        if (activeId) await convApi('truncate', { id: activeId, keep: userIdx });
+        renderAll();
+        els.input.value = content;
+        autoGrow();
+        send();
+    }
+
+    let pressTimer = null, pressPos = null;
+    const LONG_PRESS_MS = 500, MOVE_THRESHOLD = 10;
+
+    function startPress(e, x, y) {
+        const msgEl = getMsgEl(e.target);
+        if (!msgEl || msgEl.dataset.idx === undefined) return;
+        pressPos = { x, y };
+        pressTimer = setTimeout(() => {
+            pressTimer = null;
+            window.getSelection()?.removeAllRanges();
+            showCtxMenu(msgEl, x, y);
+        }, LONG_PRESS_MS);
+    }
+    function movePress(x, y) {
+        if (!pressTimer || !pressPos) return;
+        if (Math.abs(x - pressPos.x) > MOVE_THRESHOLD || Math.abs(y - pressPos.y) > MOVE_THRESHOLD) {
+            clearTimeout(pressTimer); pressTimer = null;
+        }
+    }
+    function endPress() { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } }
+
+    els.messages.addEventListener('touchstart', e => { startPress(e, e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+    els.messages.addEventListener('touchmove', e => { movePress(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+    els.messages.addEventListener('touchend', endPress);
+    els.messages.addEventListener('touchcancel', endPress);
+    els.messages.addEventListener('mousedown', e => { if (e.button === 0) startPress(e, e.clientX, e.clientY); });
+    document.addEventListener('mousemove', e => movePress(e.clientX, e.clientY));
+    document.addEventListener('mouseup', endPress);
+
+    els.messages.addEventListener('contextmenu', e => {
+        const msgEl = getMsgEl(e.target);
+        if (!msgEl || msgEl.dataset.idx === undefined) return;
+        e.preventDefault();
+        endPress();
+        showCtxMenu(msgEl, e.clientX, e.clientY);
+    });
+
+    document.addEventListener('click', e => { if (!ctxMenu.contains(e.target)) hideCtxMenu(); });
+    document.addEventListener('touchstart', e => { if (!ctxMenu.hidden && !ctxMenu.contains(e.target)) hideCtxMenu(); }, { passive: true });
+
     // ---- Init ----
     (async () => {
+        populateModels(els.provider.value, DEFAULT_MODEL_ID);
         loadSettings();
 
         // Migrate old localStorage data to DB
