@@ -1,78 +1,47 @@
-
 <!DOCTYPE html>
 <html>
 <head>
-        <title>Live2D專案紀錄(v20231018)</title>
-        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-        <style>
-            #foldheader{cursor:pointer;cursor:hand ; color:#7777FF;font-weight:bold ;
-            list-style-image:url(fold.gif)}
-            #foldinglist{list-style-image:url(list.gif)}
-            #point_Y {font-family:"微軟正黑體";color:#FFFF00;font-size:20px;}
-            #text {font-family:"微軟正黑體";font-size:16px;}
-        </style>
-        <style>
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        th, td {
-            padding: 15px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }
-        //#sortDate { font-size: 2em; }
-        //#sortText1 { font-size: 2em; }
-        //#sortText2 { font-size: 2em; }
-        //#sortNum { font-size: 2em; }
-        
-        #stickyHeader {
-            position: fixed;
-            top: 0;
-            width: 100%;
-            background-color: #343434; 
-            z-index: 1000;
-            padding: 10px 0;
-            box-shadow: 0px 2px 5px rgba(0,0,0,0.3); // 加入陰影效果
-        }
-
-        #tableContainer {
-            padding-top: 300px; /* 這個值可能需要根據 #stickyHeader 的高度進行調整 */
-        }
+    <title>Live2D專案紀錄</title>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="page.css">
+    <style>
+        body { font-family: calibri, sans-serif; color: #fff; background: #343434; }
+        a:link { color: #CC6; } a:visited { color: #FC6; } a:active { color: #AA0; }
+        .nav-link { float: right; margin-right: 30px; font-size: 14px; color: #CC6; }
+        .source-tag { font-size: 12px; color: #888; margin-left: 10px; }
     </style>
 </head>
-<body
-    style= "font-family: calibri"   
-    text="#ffffff" 
-    bgcolor="#343434" 
-    text=#FFFFFF 
-    link=#CCCC66 
-    vlink=#FFCC66 
-    alink=#AAAA00
-    onLoad="init()"
-        >
+<body>
 
     <div id="stickyHeader">
-        <h1><a href = "live2D_project_list.html">Live2D專案紀錄(v20231017)</a></h1>
-        <hr><!------------------------------------------------------>
-        計價方式<br>
-        時薪500 x 製作時數 x 緊急倍率 - 製作心情折扣XD<br>
-        倍率計算: 一個月內:(x1)倍, 兩周內急件 (x1.5), 三天內超急件 (x3)<br>
-        熟人/製作有興趣的怪東西通常會有折扣<br>
-        <hr><!------------------------------------------------------>
+        <h1>
+            Live2D專案紀錄
+            <a href="case_editer.php" class="nav-link">[編輯模式]</a>
+            <span id="sourceTag" class="source-tag"></span>
+        </h1>
+        <hr>
+        <button id="togglePricing" onclick="togglePricing()">計價方式 [展開]</button>
+        <div id="pricingContent" class="hidden">
+            時薪500 x 製作時數 x 緊急倍率 - 製作心情折扣XD<br>
+            倍率計算: 一個月內:(x1)倍, 兩周內急件 (x1.5), 三天內超急件 (x3)<br>
+            熟人/製作有興趣的怪東西通常會有折扣<br>
+            <br>
+            委託方式: 推特私訊估價XD 平日在線時間 23:00~03:00
+        </div>
+        <hr>
         排序按鈕:<br>
-        <button id="sortDate" onclick="sortTable(0, 'date'); toggleButtonText('sortDate', '日期排序(舊->新)', '日期排序(新->舊)')">日期排序(舊->新)</button>
-        <button id="sortText1" onclick="sortTable(1, 'text'); toggleButtonText('sortText1', '委託人排序(A->Z)', '委託人排序(Z->A)')">委託人排序(A->Z)</button>
-        <button id="sortNum" onclick="sortTable(3, 'number'); toggleButtonText('sortNum', '價格排序(低->高)', '價格排序(高->低)')">價格排序(低->高)</button>
-        <button id="sortText2" onclick="sortTable(6, 'text'); toggleButtonText('sortText2', '項目(A->Z)', '項目(Z->A)')">項目(A->Z)</button>
-        <hr><!------------------------------------------------------>
+        <button id="sortDate" onclick="sortTable(0,'date'); toggleBtn('sortDate','日期排序(舊->新)','日期排序(新->舊)')">日期排序(舊->新)</button>
+        <button id="sortText1" onclick="sortTable(1,'text'); toggleBtn('sortText1','委託人排序(A->Z)','委託人排序(Z->A)')">委託人排序(A->Z)</button>
+        <button id="sortNum" onclick="sortTable(3,'number'); toggleBtn('sortNum','價格排序(低->高)','價格排序(高->低)')">價格排序(低->高)</button>
+        <button id="sortText2" onclick="sortTable(6,'text'); toggleBtn('sortText2','項目(A->Z)','項目(Z->A)')">項目(A->Z)</button>
+        <hr>
         篩選欄位:
         <select id="filterColumn">
             <option value="0">日期</option>
             <option value="1">委託人</option>
             <option value="3">價格</option>
         </select>
-        輸入關鍵字: <input type="text" id="filterValue" />
+        輸入關鍵字: <input type="text" id="filterValue">
         <button onclick="filterTable()">篩選</button>
         <br>以下為專案列表
         <br>
@@ -80,160 +49,142 @@
 <br>
 
     <div id="tableContainer">
-        <table id="dataTable" border="1" cellpadding="1" cellspacing="1">
-        </table>
+        <table id="dataTable" border="1" cellpadding="1" cellspacing="1"></table>
     </div>
 
-<hr><!------------------------------------------------------>
+<hr>
 
 <script>
-var data = [
-{ 日期: "2021/09/21", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "0", 製作項目: "洛可DX", 備註: "初次委託<br>三軸半身", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=i0IUXUBa3ro",  },
-{ 日期: "2021/10/23", 委託人: "Aoi", 單位: "個人勢", 價格: "15000", 製作項目: "蘿莉化-Aloli", 備註: "全身+熱鍵應用", 任務: "建模<br>繪師:馬吉<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=P8iXzv-wYg4",  },
-{ 日期: "2021/11/15", 委託人: "貓祭", 單位: "個人勢", 價格: "2000", 製作項目: "埃及搖貓祭", 備註: "", 任務: "建模<br>繪師:貓祭<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=uKhyMA-fQ28",  },
-{ 日期: "2021/12/10", 委託人: "貓祭", 單位: "個人勢", 價格: "15000", 製作項目: "蘿莉化-蘿祭", 備註: "進階熱鍵", 任務: "建模<br>繪師:馬吉<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=oT--F3YLXUM",  },
-{ 日期: "2021/12/20", 委託人: "Tabasuko", 單位: "Mirolive", 價格: "500", 製作項目: "食物皮-水餃+包子", 備註: "", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "待補充",  },
-{ 日期: "2021/12/25", 委託人: "Tabasuko", 單位: "Mirolive", 價格: "1000", 製作項目: "聖誕樹型態", 備註: "", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=RFEHmNo7YOw",  },
-{ 日期: "2021/12/25", 委託人: "Aoi", 單位: "個人勢", 價格: "2000", 製作項目: "聖誕衣裝", 備註: "更衣系統+跨模型連動", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=m1kyZAsniak",  },
-{ 日期: "2021/12/25", 委託人: "貓祭", 單位: "個人勢", 價格: "2000", 製作項目: "聖誕衣裝", 備註: "更衣系統+跨模型連動", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=m1kyZAsniak",  },
-{ 日期: "2021/12/25", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "2500", 製作項目: "洛可DX聖誕衣裝", 備註: "吐舌頭", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=sMWGtTy67wY",  },
-{ 日期: "2021/12/25", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "15000", 製作項目: "蘿可", 備註: "階段性技術集大成", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=sMWGtTy67wY",  },
-{ 日期: "2021/12/31", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "1500", 製作項目: "老洛可", 備註: "", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=kcrDkeGzddw",  },
-{ 日期: "2022/01/22", 委託人: "社長Kuma", 單位: "個人勢", 價格: "0", 製作項目: "社長阿修羅", 備註: "酷東西XD<br>真人V皮", 任務: "建模<br>繪師:Kuma<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=ljjmEIMOuKw",  },
-{ 日期: "2022/02/02", 委託人: "Tabasuko", 單位: "Mirolive", 價格: "500", 製作項目: "食物皮-紅包DLC", 備註: "", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "待補充",  },
-{ 日期: "2022/02/06", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "2000", 製作項目: "蘿可-春節衣裝+DX", 備註: "模型融合", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=eXRT-TAWjB4",  },
-{ 日期: "2022/03/06", 委託人: "梅莉帕可斯", 單位: "Mirolive", 價格: "1200", 製作項目: "羊駝型態", 備註: "", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "待補充",  },
-{ 日期: "2022/04/01", 委託人: "自己", 單位: "自己", 價格: "0", 製作項目: "蘿莉化夜花", 備註: "FanArt<br>", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "待補充",  },
-{ 日期: "2022/04/04", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "750", 製作項目: "蘿可-畫筆配件", 備註: "滑鼠應用", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=LSQlbC_9tcA",  },
-{ 日期: "2022/04/17", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "15000", 製作項目: "洛可JOJO化_洛太郎", 備註: "呼吸變形應用", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=LWPpOxzYWP8",  },
-{ 日期: "2022/06/03", 委託人: "Tabasuko", 單位: "Mirolive", 價格: "400", 製作項目: "食物皮-粽子DLC", 備註: "", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=_sxjsxAu6HQ",  },
-{ 日期: "2022/06/04", 委託人: "貓祭", 單位: "個人勢", 價格: "3500", 製作項目: "腿祭", 備註: "奇怪的東西XD<br>滑鼠應用+彈跳特效", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=4LwzZSSHmHg",  },
-{ 日期: "2022/06/05", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "5000", 製作項目: "洛可加零", 備註: "第四面牆特效應用", 任務: "建模<br>繪師:加零<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=iPPONTiOVSI",  },
-{ 日期: "2022/06/25", 委託人: "自己", 單位: "自己", 價格: "0", 製作項目: "漁夫洛可", 備註: "FanArt<br>", 任務: "建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "待補充",  },
-{ 日期: "2022/06/28", 委託人: "祈拉", 單位: "Storia", 價格: "15000", 製作項目: "七萬六", 備註: "動作錄製應用/血條", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=oc9_vqYXnYI",  },
-{ 日期: "2022/08/12", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "2500", 製作項目: "洛可壁尻台", 備註: "血條/動畫製作", 任務: "建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=A4Avmk-irpM",  },
-{ 日期: "2022/08/12", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "2500", 製作項目: "蘿可-泳裝更衣功能", 備註: "貼圖更換技術應用", 任務: "建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=9VdI4cxqqmk",  },
-{ 日期: "2022/09/21", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "10000", 製作項目: "洛可DX2.0", 備註: "體型變形特效", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=ZeVIMtOQRkU",  },
-{ 日期: "2022/09/30", 委託人: "淵夜", 單位: "個人勢", 價格: "13000", 製作項目: "蘿莉化蘿淵", 備註: "手臂控制技術", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=ct1ZZzmX6WQ",  },
-{ 日期: "2022/11/21", 委託人: "貓祭", 單位: "個人勢", 價格: "3000", 製作項目: "腸祭", 備註: "立體感+貼圖應用", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=3sa53cBBZDc",  },
-{ 日期: "2022/12/21", 委託人: "自己", 單位: "自己", 價格: "0", 製作項目: "夜花水手服V皮", 備註: "FanArt<br>", 任務: "立繪拆件<br>繪師:忽田各<br>建模:車神", Demo影片: "待補充", 實際演出節目: "待補充",  },
-{ 日期: "2022/12/25", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "7500", 製作項目: "蘿可衣裝金孫踏台", 備註: "集大成", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=DWD9yGil7fQ",  },
-{ 日期: "2023/01/28", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "2000", 製作項目: "蘿可兔年兔女郎", 備註: "紙娃娃系統", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=Rk4mAX3VzMw",  },
-{ 日期: "2023/02/22", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "2222", 製作項目: "貓化洛可-胖cake", 備註: "非人形", 任務: "建模<br>繪師:Jiama<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=XIExM-9-B98",  },
-{ 日期: "2023/04/01", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "3000", 製作項目: "QB化洛可", 備註: "循環動畫應用", 任務: "建模<br>繪師:QB<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=9W3pqbu9loo",  },
-{ 日期: "2023/04/01", 委託人: "貓祭", 單位: "個人勢", 價格: "2500", 製作項目: "心祭", 備註: "跨模型互動", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=xpQmhgr43MI",  },
-{ 日期: "2023/06/15", 委託人: "庫洛姆", 單位: "個人勢", 價格: "5000", 製作項目: "庫洛姆踩踏模型", 備註: "性癖<br>中指動畫", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=wzisvigbbj8",  },
-{ 日期: "2023/07/30", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "2000", 製作項目: "曹可", 備註: "臉部陰影3D應用", 任務: "立繪+建模<br>繪師:忽田各<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "https://www.youtube.com/watch?v=5s_VqPf4poU",  },
-{ 日期: "2023/09/23", 委託人: "洛可洛斯特", 單位: "個人勢", 價格: "2000", 製作項目: "曹可DLC", 備註: "膠水應用", 任務: "立繪+建模<br>繪師:Jiama<br>建模:忽田各", Demo影片: "待補充", 實際演出節目: "待補充",  },
-
+var FIELDS = [
+    {key: 'date', label: '日期'},
+    {key: 'client', label: '委託人'},
+    {key: 'unit', label: '單位'},
+    {key: 'price', label: '價格'},
+    {key: 'item', label: '製作項目'},
+    {key: 'note', label: '備註'},
+    {key: 'task', label: '任務'},
+    {key: 'demo', label: 'Demo影片'},
+    {key: 'show_url', label: '實際演出節目'}
 ];
 
-function filterTable() {
-    var filterColumn = parseInt(document.getElementById("filterColumn").value);
-    var filterValue = document.getElementById("filterValue").value.toLowerCase();
-    var table = document.getElementById("dataTable");
-    var rows = table.getElementsByTagName("tr");
+// JSON txt 的 key 跟 DB 不同，需要對應
+var TXT_KEY_MAP = {
+    '日期': 'date', '委託人': 'client', '單位': 'unit',
+    '價格': 'price', '製作項目': 'item', '備註': 'note',
+    '任務': 'task', 'Demo影片': 'demo', '實際演出節目': 'show_url'
+};
 
-    // 從第二行開始過濾，因為第一行是標題
-    for (var i = 1; i < rows.length; i++) {
-        var cell = rows[i].getElementsByTagName("TD")[filterColumn];
-        if (cell) {
-            var cellValue = cell.innerText || cell.textContent;
-            if (cellValue.toLowerCase().indexOf(filterValue) > -1) {
-                rows[i].style.display = "";  // 顯示
-            } else {
-                rows[i].style.display = "none";  // 隱藏
-            }
+function normalizeTxtData(arr) {
+    return arr.map(function(row) {
+        var out = {};
+        for (var k in row) {
+            var mapped = TXT_KEY_MAP[k] || k;
+            out[mapped] = row[k];
         }
-    }
+        return out;
+    });
 }
+
+fetch('api.php?action=list')
+    .then(function(r) {
+        if (!r.ok) throw new Error('api failed');
+        return r.json();
+    })
+    .then(function(data) {
+        document.getElementById('sourceTag').textContent = '(即時資料)';
+        generateTable(data);
+    })
+    .catch(function() {
+        fetch('live2D_case.txt')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                document.getElementById('sourceTag').textContent = '(靜態快照)';
+                generateTable(normalizeTxtData(data));
+            })
+            .catch(function() {
+                document.getElementById('sourceTag').innerHTML =
+                    '(<a href="https://stvfu.com/page/live2D/">前往完整版</a>)';
+            });
+    });
 
 function generateTable(data) {
     var table = document.getElementById("dataTable");
-    var header = Object.keys(data[0]);
-    var tHead = document.createElement('thead');
-    var row = document.createElement('tr');
-    for (var i = 0; i < header.length; i++) {
+    var thead = document.createElement('thead');
+    var hr = document.createElement('tr');
+    for (var i = 0; i < FIELDS.length; i++) {
         var th = document.createElement('th');
-        th.innerHTML = header[i];
-        row.appendChild(th);
+        th.textContent = FIELDS[i].label;
+        hr.appendChild(th);
     }
-    tHead.appendChild(row);
-    table.appendChild(tHead);
+    thead.appendChild(hr);
+    table.appendChild(thead);
 
-    var tBody = document.createElement('tbody');
+    var tbody = document.createElement('tbody');
     for (var i = 0; i < data.length; i++) {
         var row = document.createElement('tr');
-        for (var j = 0; j < header.length; j++) {
+        for (var j = 0; j < FIELDS.length; j++) {
             var td = document.createElement('td');
-
-            if ((header[j] == "實際演出節目") || (header[j] == "Demo影片")) {
-                if(data[i][header[j]].includes("youtube"))
-                {
-                    td.innerHTML = '<a href="'+ data[i][header[j]] +'" target="_blank">[影片連結]</a>';
-                    //td.innerHTML = '<iframe width="177" height="100" src="'+ data[i][header[j]] +'" frameborder="0" allow="autoplay; encrypted-media"></iframe>';
-                }
-                else
-                {
-                    td.innerHTML = data[i][header[j]];
-                }
-            } else {                
-                td.innerHTML = data[i][header[j]];
+            var key = FIELDS[j].key;
+            var val = data[i][key] || '';
+            if ((key === 'show_url' || key === 'demo') && val.includes('youtube')) {
+                td.innerHTML = '<a href="' + val + '" target="_blank">[影片連結]</a>';
+            } else {
+                td.innerHTML = val;
             }
-
             row.appendChild(td);
         }
-        tBody.appendChild(row);
+        tbody.appendChild(row);
     }
-    table.appendChild(tBody);
+    table.appendChild(tbody);
 }
 
-generateTable(data);
-var sortDirection = {
-    0: true, // 'true'表示正序，'false'表示逆序
-    1: true,
-    3: true,
-    6: true,
-};
-                
+function togglePricing() {
+    var el = document.getElementById("pricingContent");
+    var btn = document.getElementById("togglePricing");
+    var hidden = el.classList.toggle("hidden");
+    btn.textContent = "計價方式 [" + (hidden ? "展開" : "收合") + "]";
+}
+
+function filterTable() {
+    var col = parseInt(document.getElementById("filterColumn").value);
+    var val = document.getElementById("filterValue").value.toLowerCase();
+    var rows = document.getElementById("dataTable").getElementsByTagName("tr");
+    for (var i = 1; i < rows.length; i++) {
+        var cell = rows[i].getElementsByTagName("TD")[col];
+        if (cell) {
+            var text = (cell.innerText || cell.textContent).toLowerCase();
+            rows[i].style.display = text.indexOf(val) > -1 ? "" : "none";
+        }
+    }
+}
+
+var sortDirection = {0:true, 1:true, 3:true, 6:true};
+
 function sortTable(n, type) {
-    var table, rows, switching, i, x, y, shouldSwitch;
-    table = document.getElementById("dataTable");
-    switching = true;
+    var table = document.getElementById("dataTable");
+    var switching = true;
     while (switching) {
         switching = false;
-        rows = table.rows;
-        for (i = 1; i < (rows.length - 1); i++) {
-            shouldSwitch = false;
-            x = rows[i].getElementsByTagName("TD")[n];
-            y = rows[i + 1].getElementsByTagName("TD")[n];
-            if (type === 'number') {
-                if ((sortDirection[n] ? 1 : -1) * (Number(x.innerHTML) - Number(y.innerHTML)) > 0) {
-                    shouldSwitch = true;
-                    break;
-                }
-            } else {
-                if ((sortDirection[n] ? 1 : -1) * x.innerHTML.toLowerCase().localeCompare(y.innerHTML.toLowerCase()) > 0) {
-                    shouldSwitch = true;
-                    break;
-                }
+        var rows = table.rows;
+        for (var i = 1; i < rows.length - 1; i++) {
+            var x = rows[i].getElementsByTagName("TD")[n];
+            var y = rows[i+1].getElementsByTagName("TD")[n];
+            var cmp;
+            if (type === 'number') cmp = Number(x.innerHTML) - Number(y.innerHTML);
+            else cmp = x.innerHTML.toLowerCase().localeCompare(y.innerHTML.toLowerCase());
+            if ((sortDirection[n] ? 1 : -1) * cmp > 0) {
+                rows[i].parentNode.insertBefore(rows[i+1], rows[i]);
+                switching = true;
+                break;
             }
         }
-        if (shouldSwitch) {
-            rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
-            switching = true;
-        }
     }
-    sortDirection[n] = !sortDirection[n]; // 翻轉排序方向
+    sortDirection[n] = !sortDirection[n];
 }
 
-function toggleButtonText(buttonId, defaultText, toggledText) {
-    var button = document.getElementById(buttonId);
-    if (button.textContent == defaultText) {
-        button.textContent = toggledText;
-    } else {
-        button.textContent = defaultText;
-    }
+function toggleBtn(id, a, b) {
+    var btn = document.getElementById(id);
+    btn.textContent = btn.textContent === a ? b : a;
 }
 </script>
 </body>
