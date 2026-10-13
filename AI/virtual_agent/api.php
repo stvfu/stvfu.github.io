@@ -83,8 +83,11 @@ if (!isset(MODELS[$model])) {
     fail(400, '不支援的模型。');
 }
 $provider = MODELS[$model]['provider'] ?? 'claude';
-if ($provider !== 'claude') {
+if (!in_array($provider, ['claude', 'openai', 'grok'], true)) {
     fail(501, MODELS[$model]['label'] . '：此模型尚未啟用，敬請期待！');
+}
+if ($provider !== 'claude') {
+    $mode = 'api';
 }
 $effort = $in['effort'] ?? DEFAULT_EFFORT;
 if (!isset(EFFORTS[$effort])) {
@@ -162,8 +165,109 @@ if ($mode === 'cli') {
         emit(['type' => 'error', 'message' => cli_error_message($cliError ?? substr($stderr, -500))]);
         exit;
     }
+} elseif ($provider === 'openai' || $provider === 'grok') {
+    // ---- OpenAI 相容 API（OpenAI / xAI）----
+    if ($provider === 'openai') {
+        $key = openai_api_key($config);
+        $base = rtrim($config['openai_api_base'] ?? 'https://api.openai.com', '/');
+        $apiName = 'OpenAI';
+    } else {
+        $key = xai_api_key($config);
+        $base = rtrim($config['xai_api_base'] ?? 'https://api.x.ai', '/');
+        $apiName = 'xAI';
+    }
+    if ($key === '') {
+        fail(500, "尚未設定 {$apiName} API 金鑰：請在 config.php 填入對應的 api_key。");
+    }
+
+    $apiMessages = [];
+    if (trim($system) !== '') {
+        $apiMessages[] = ['role' => 'system', 'content' => $system];
+    }
+    foreach ($messages as $m) {
+        $apiMessages[] = $m;
+    }
+
+    $body = [
+        'model'          => $model,
+        'max_tokens'     => 16384,
+        'stream'         => true,
+        'stream_options' => ['include_usage' => true],
+        'messages'       => $apiMessages,
+    ];
+    $headers = [
+        'Content-Type: application/json',
+        'Authorization: Bearer ' . $key,
+        'Connection: close',
+    ];
+
+    $ctx = stream_context_create(['http' => [
+        'method'           => 'POST',
+        'header'           => implode("\r\n", $headers),
+        'content'          => json_encode($body, JSON_UNESCAPED_UNICODE),
+        'ignore_errors'    => true,
+        'timeout'          => 600,
+        'protocol_version' => 1.1,
+    ]]);
+    $fp = @fopen($base . '/v1/chat/completions', 'r', false, $ctx);
+    if (!$fp) {
+        fail(502, "無法連線到 {$apiName} API，請稍後再試。");
+    }
+
+    $statusLine = stream_get_meta_data($fp)['wrapper_data'][0] ?? '';
+    $httpStatus = preg_match('~^HTTP/\S+\s+(\d{3})~', $statusLine, $mm) ? (int) $mm[1] : 0;
+    if ($httpStatus !== 200) {
+        $err = json_decode(stream_get_contents($fp), true);
+        fclose($fp);
+        $detail = $err['error']['message'] ?? $statusLine;
+        $hint = match (true) {
+            $httpStatus === 401 => 'API 金鑰無效',
+            $httpStatus === 429 => '已達用量或速率上限',
+            $httpStatus >= 500  => "{$apiName} API 發生錯誤",
+            default             => "{$apiName} API 拒絕了這個請求",
+        };
+        fail(502, "{$hint}（{$httpStatus}）：{$detail}");
+    }
+
+    begin_stream();
+    while (($line = fgets($fp)) !== false) {
+        if (connection_aborted()) break;
+        $line = trim($line);
+        if (!str_starts_with($line, 'data:')) continue;
+        $data = trim(substr($line, 5));
+        if ($data === '[DONE]') {
+            $st['finished'] = true;
+            break;
+        }
+        $ev = json_decode($data, true);
+        if (!is_array($ev)) continue;
+
+        $choice = $ev['choices'][0] ?? null;
+        if ($choice) {
+            $delta = $choice['delta'] ?? [];
+            if (isset($delta['content']) && $delta['content'] !== '') {
+                emit(['type' => 'text', 'text' => $delta['content']]);
+            }
+            if (($choice['finish_reason'] ?? null) !== null) {
+                $st['stop_reason'] = match ($choice['finish_reason']) {
+                    'stop'           => 'end_turn',
+                    'length'         => 'max_tokens',
+                    'content_filter' => 'refusal',
+                    default          => $choice['finish_reason'],
+                };
+            }
+        }
+        if (isset($ev['usage'])) {
+            $st['usage']['input_tokens'] = $ev['usage']['prompt_tokens'] ?? 0;
+            $st['usage']['output_tokens'] = $ev['usage']['completion_tokens'] ?? 0;
+        }
+        if (isset($ev['model'])) {
+            $st['model'] = $ev['model'];
+        }
+    }
+    fclose($fp);
 } else {
-    // ---- API 模式：直接呼叫 Claude API ----
+    // ---- Claude API 模式 ----
     $key = api_key($config);
     if ($key === '') {
         fail(500, '尚未設定 API 金鑰：請在 config.php 的 api_key 填入 Anthropic API 金鑰，或取消勾選「API 模式」。');
@@ -244,5 +348,5 @@ if ($st['stop_reason'] !== null) {
         'model' => $st['model'], 'usage' => $st['usage'], 'plan_usage' => $st['plan_usage'],
     ]);
 } elseif (!$st['finished'] && !connection_aborted()) {
-    emit(['type' => 'error', 'message' => '與 Claude 的連線中斷，回覆可能不完整。']);
+    emit(['type' => 'error', 'message' => '與 AI 的連線中斷，回覆可能不完整。']);
 }
