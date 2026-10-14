@@ -1,176 +1,735 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-TW">
+<head>
+    <title>三視圖丈量工具</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        :root {
+            --bg: #1a1a2e;
+            --surface: #16213e;
+            --border: #1a3a6a;
+            --text: #e0e0e0;
+            --text-muted: #8899aa;
+            --accent: #e94560;
+            --accent2: #4ea8de;
+            --accent3: #56c596;
+            --radius: 10px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body {
+            height: 100%; overflow: hidden;
+            background: var(--bg); color: var(--text);
+            font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif;
+        }
+        .layout { display: flex; flex-direction: column; height: 100%; }
 
-	<head>
-		<title>oppai 測量工具</title>
-		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-		
-		<style>
-			#text {font-family:"微軟正黑體";font-size:16px;}
-			#point_Y {font-family:"微軟正黑體";color:#FFFF00;font-size:20px;}
-		</style>
-		<script type="text/JavaScript" src="../../flot.js"></script>	
-	</head>
+        header {
+            background: var(--surface); border-bottom: 1px solid var(--border);
+            padding: 12px 24px; display: flex; align-items: center; gap: 12px; flex-shrink: 0;
+        }
+        header h1 { font-size: 20px; font-weight: 600; }
+        header .badge {
+            background: var(--accent); color: #fff;
+            font-size: 11px; padding: 2px 8px; border-radius: 99px; font-weight: 600;
+        }
 
+        .content { display: flex; flex: 1; min-height: 0; }
+
+        /* === Left: view area === */
+        .view-area { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+        /* Tab bar */
+        .tab-bar {
+            display: flex; align-items: center; gap: 0;
+            background: var(--surface); border-bottom: 1px solid var(--border);
+            flex-shrink: 0; padding: 0 16px;
+        }
+        .tab-btn {
+            padding: 10px 20px; font-size: 13px; font-weight: 600;
+            color: var(--text-muted); background: none; border: none;
+            border-bottom: 2px solid transparent;
+            cursor: pointer; transition: color 0.2s, border-color 0.2s;
+        }
+        .tab-btn:hover { color: var(--text); }
+        .tab-btn.active { color: var(--accent2); border-bottom-color: var(--accent2); }
+
+        .tab-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+        .light-controls { display: none; align-items: center; gap: 10px; }
+        .light-controls.visible { display: flex; }
+        .light-controls label { font-size: 11px; color: var(--text-muted); }
+        .light-controls input[type="range"] {
+            width: 80px; -webkit-appearance: none; appearance: none;
+            height: 3px; border-radius: 2px; background: var(--border); outline: none;
+        }
+        .light-controls input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 12px; height: 12px;
+            border-radius: 50%; background: #f0c040; cursor: pointer; border: 2px solid var(--bg);
+        }
+
+        /* View panels */
+        .view-panel { flex: 1; display: none; min-height: 0; }
+        .view-panel.active { display: flex; }
+
+        /* 2D */
+        .canvas-area {
+            flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px;
+        }
+        .canvas-wrapper {
+            position: relative; border-radius: var(--radius); overflow: hidden;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+            border: 1px solid var(--border); line-height: 0;
+        }
+        #myCanvas { display: block; background: #111; }
+        .canvas-hint {
+            position: absolute; inset: 0;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: var(--text-muted); font-size: 14px; pointer-events: none; transition: opacity 0.3s;
+        }
+        .canvas-hint.hidden { opacity: 0; }
+        .canvas-hint svg { margin-bottom: 10px; opacity: 0.4; }
+
+        /* 3D */
+        .three-panel { background: #000; position: relative; }
+        #threeCanvas { display: block; width: 100%; height: 100%; }
+
+        /* === Sidebar === */
+        .sidebar {
+            width: 380px; flex-shrink: 0; background: var(--surface);
+            border-left: 1px solid var(--border); overflow-y: auto; padding: 16px;
+        }
+        .sidebar > * + * { margin-top: 12px; }
+        .sidebar::-webkit-scrollbar { width: 5px; }
+        .sidebar::-webkit-scrollbar-track { background: transparent; }
+        .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+        .card { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); }
+        .card-header { display: flex; align-items: center; gap: 10px; padding: 10px 14px; }
+        .step-num {
+            width: 24px; height: 24px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 12px; font-weight: 700; flex-shrink: 0; color: #fff;
+        }
+        .step-1 .step-num { background: var(--accent); }
+        .step-2 .step-num { background: var(--accent2); }
+        .step-3 .step-num { background: var(--accent); }
+        .step-4 .step-num { background: var(--accent3); }
+        .step-5 .step-num { background: #b07cd8; }
+        .step-5 .control-row input[type="range"]::-webkit-slider-thumb { background: #b07cd8; }
+        .card-title { font-size: 14px; font-weight: 600; }
+        .card-body { padding: 4px 14px 14px; }
+
+        .upload-zone {
+            border: 2px dashed var(--border); border-radius: 8px; padding: 18px;
+            text-align: center; cursor: pointer; position: relative;
+            transition: border-color 0.2s, background 0.2s;
+        }
+        .upload-zone:hover { border-color: var(--accent2); background: rgba(78,168,222,0.05); }
+        .upload-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+        .upload-zone svg { display: block; margin: 0 auto 6px; opacity: 0.5; }
+        .upload-zone p { font-size: 13px; color: var(--text-muted); }
+        .upload-zone .filename { color: var(--accent2); font-weight: 600; }
+
+        .control-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+        .control-row label {
+            font-size: 12px; color: var(--text-muted); width: 80px; flex-shrink: 0; text-align: right;
+        }
+        .control-row input[type="range"] {
+            flex: 1; -webkit-appearance: none; appearance: none;
+            height: 4px; border-radius: 2px; background: var(--border); outline: none;
+        }
+        .control-row input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%;
+            background: var(--accent2); cursor: pointer; border: 2px solid var(--bg);
+        }
+        .step-3 .control-row input[type="range"]::-webkit-slider-thumb { background: var(--accent); }
+        .step-4 .control-row input[type="range"]::-webkit-slider-thumb { background: var(--accent3); }
+        .control-row .val {
+            font-size: 12px; width: 32px; text-align: right;
+            font-variant-numeric: tabular-nums; flex-shrink: 0;
+        }
+
+        .height-row { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+        .height-row label { font-size: 12px; color: var(--text-muted); }
+        .height-row input[type="text"] {
+            width: 64px; background: var(--surface); border: 1px solid var(--border);
+            border-radius: 6px; color: var(--text); padding: 5px 8px;
+            font-size: 14px; text-align: center; outline: none;
+        }
+        .height-row input[type="text"]:focus { border-color: var(--accent2); }
+        .height-row .unit { font-size: 13px; color: var(--text-muted); }
+
+        .scale-box {
+            margin-top: 8px; background: var(--surface); border-radius: 6px;
+            padding: 6px 12px; font-size: 13px; display: flex; justify-content: space-between;
+        }
+        .scale-box .lb { color: var(--text-muted); }
+        .scale-box .vl { color: var(--accent2); font-weight: 600; }
+
+        .sub-label {
+            font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px;
+            color: var(--text-muted); margin-top: 10px;
+        }
+
+        .sidebar::after { content: ''; display: block; height: 20px; flex-shrink: 0; }
+
+        @media (max-width: 860px) {
+            html, body { overflow: hidden; }
+            .layout { height: 100%; }
+
+            header { padding: 8px 16px; }
+            header h1 { font-size: 16px; }
+
+            .content { flex-direction: column; height: calc(100% - 45px); }
+
+            .view-area {
+                flex: none;
+                height: 40vh;
+                min-height: 200px;
+                border-bottom: 1px solid var(--border);
+            }
+
+            .tab-bar { padding: 0 8px; }
+            .tab-btn { padding: 6px 14px; font-size: 12px; }
+            .light-controls label { font-size: 10px; }
+            .light-controls input[type="range"] { width: 50px; }
+
+            .canvas-area { padding: 8px; }
+
+            .sidebar {
+                width: 100%;
+                flex: 1;
+                min-height: 0;
+                border-left: none;
+                overflow-y: auto;
+                padding: 12px;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .card-body { padding: 4px 10px 10px; }
+            .control-row label { width: 70px; font-size: 11px; }
+            .control-row { margin-top: 6px; gap: 6px; }
+            .control-row input[type="range"]::-webkit-slider-thumb {
+                width: 20px; height: 20px;
+            }
+            .control-row .val { font-size: 11px; }
+
+            .sidebar::after { height: 60px; }
+        }
+    </style>
+</head>
 <body>
-<h1>三視圖丈量小工具</h1>
+<div class="layout">
 
-<div style="float:left; width:800px;">
-    <h4>工作區域</h4>
-    <canvas id="myCanvas" width="800" height="800" style="border:1px solid #d3d3d3;">
-    Your browser does not support the HTML5 canvas tag.</canvas>
+    <header>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+        <h1>三視圖丈量工具</h1>
+        <span class="badge">v2</span>
+    </header>
+
+    <div class="content">
+        <div class="view-area">
+            <!-- Tab Bar -->
+            <div class="tab-bar">
+                <button class="tab-btn active" data-tab="2d">2D 標記</button>
+                <button class="tab-btn" data-tab="3d">3D 預覽</button>
+                <div class="tab-right">
+                    <div class="light-controls" id="lightControls">
+                        <label>水平</label>
+                        <input type="range" id="lightX" min="-180" max="180" value="45">
+                        <label>垂直</label>
+                        <input type="range" id="lightY" min="0" max="90" value="45">
+                        <label>強度</label>
+                        <input type="range" id="lightIntensity" min="0" max="200" value="100">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2D Panel -->
+            <div class="view-panel active" id="panel2d">
+                <div class="canvas-area">
+                    <div class="canvas-wrapper">
+                        <canvas id="myCanvas" width="800" height="800" style="max-width:100%;max-height:100%"></canvas>
+                        <div class="canvas-hint" id="canvasHint">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                            請先上傳圖片
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3D Panel -->
+            <div class="view-panel three-panel" id="panel3d">
+                <canvas id="threeCanvas"></canvas>
+            </div>
+        </div>
+
+        <div class="sidebar">
+            <div class="card step-1">
+                <div class="card-header"><span class="step-num">1</span><span class="card-title">上傳圖片</span></div>
+                <div class="card-body">
+                    <div class="upload-zone" id="uploadZone">
+                        <input type="file" id="imgInput" accept=".jpg,.jpeg,.png">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                        <p id="uploadText">點擊或拖曳圖片上傳</p>
+                    </div>
+                </div>
+            </div>
+            <div class="card step-2">
+                <div class="card-header"><span class="step-num">2</span><span class="card-title">身高比例尺</span></div>
+                <div class="card-body">
+                    <div class="height-row">
+                        <label>身高</label>
+                        <input type="text" id="heightInput" value="160">
+                        <span class="unit">cm</span>
+                    </div>
+                    <div class="scale-box">
+                        <span class="lb">比例尺</span>
+                        <span class="vl" id="scaleText">1px = ? cm</span>
+                    </div>
+                    <div class="control-row"><label>量尺 X</label><input type="range" id="rulerX" min="0" max="800" value="50"><span class="val" data-for="rulerX">50</span></div>
+                    <div class="control-row"><label>量尺 Y</label><input type="range" id="rulerY" min="0" max="800" value="600"><span class="val" data-for="rulerY">600</span></div>
+                    <div class="control-row"><label>量尺長度</label><input type="range" id="rulerHeight" min="50" max="800" value="500"><span class="val" data-for="rulerHeight">500</span></div>
+                </div>
+            </div>
+            <div class="card step-3">
+                <div class="card-header"><span class="step-num">3</span><span class="card-title">正面標記</span></div>
+                <div class="card-body">
+                    <p class="sub-label">位置</p>
+                    <div class="control-row"><label>中心 X</label><input type="range" id="centerX" min="0" max="800" value="300"><span class="val" data-for="centerX">300</span></div>
+                    <div class="control-row"><label>中心 Y</label><input type="range" id="centerY" min="0" max="800" value="300"><span class="val" data-for="centerY">300</span></div>
+                    <p class="sub-label">尺寸</p>
+                    <div class="control-row"><label>間距</label><input type="range" id="distance" min="0" max="400" value="50"><span class="val" data-for="distance">50</span></div>
+                    <div class="control-row"><label>長度</label><input type="range" id="radiusY" min="10" max="200" value="30"><span class="val" data-for="radiusY">30</span></div>
+                    <div class="control-row"><label>寬度</label><input type="range" id="radiusX" min="10" max="200" value="30"><span class="val" data-for="radiusX">30</span></div>
+                    <p class="sub-label">身體</p>
+                    <div class="control-row"><label>肩寬</label><input type="range" id="shoulderW" min="10" max="400" value="130"><span class="val" data-for="shoulderW">130</span></div>
+                    <div class="control-row"><label>腰寬</label><input type="range" id="waistW" min="10" max="400" value="90"><span class="val" data-for="waistW">90</span></div>
+                </div>
+            </div>
+            <div class="card step-4">
+                <div class="card-header"><span class="step-num">4</span><span class="card-title">側面標記</span></div>
+                <div class="card-body">
+                    <p class="sub-label">身體截面</p>
+                    <div class="control-row"><label>寬度</label><input type="range" id="rectangleWidth" min="10" max="400" value="80"><span class="val" data-for="rectangleWidth">80</span></div>
+                    <div class="control-row"><label>高度</label><input type="range" id="rectangleHeight" min="10" max="400" value="80"><span class="val" data-for="rectangleHeight">80</span></div>
+                    <div class="control-row"><label>傾斜角度</label><input type="range" id="rotation" min="-45" max="45" value="0"><span class="val" data-for="rotation">0°</span></div>
+                    <p class="sub-label">距離與位置</p>
+                    <div class="control-row"><label>胸身距離</label><input type="range" id="distanceQ1Q2" min="10" max="400" value="60"><span class="val" data-for="distanceQ1Q2">60</span></div>
+                    <div class="control-row"><label>整體 X</label><input type="range" id="opSideX" min="0" max="800" value="600"><span class="val" data-for="opSideX">600</span></div>
+                    <div class="control-row"><label>整體 Y</label><input type="range" id="opSideY" min="0" max="800" value="300"><span class="val" data-for="opSideY">300</span></div>
+                </div>
+            </div>
+            <div class="card step-5">
+                <div class="card-header"><span class="step-num">5</span><span class="card-title">頭部</span></div>
+                <div class="card-body">
+                    <p class="sub-label">正面位置</p>
+                    <div class="control-row"><label>頭部 X</label><input type="range" id="headX" min="0" max="800" value="300"><span class="val" data-for="headX">300</span></div>
+                    <div class="control-row"><label>頭部 Y</label><input type="range" id="headY" min="0" max="800" value="200"><span class="val" data-for="headY">200</span></div>
+                    <p class="sub-label">尺寸</p>
+                    <div class="control-row"><label>頭寬</label><input type="range" id="headRX" min="5" max="150" value="25"><span class="val" data-for="headRX">25</span></div>
+                    <div class="control-row"><label>頭高</label><input type="range" id="headRY" min="5" max="200" value="30"><span class="val" data-for="headRY">30</span></div>
+                    <p class="sub-label">側面位置</p>
+                    <div class="control-row"><label>側面 X</label><input type="range" id="headSideX" min="0" max="800" value="600"><span class="val" data-for="headSideX">600</span></div>
+                    <div class="control-row"><label>側面 Y</label><input type="range" id="headSideY" min="0" max="800" value="200"><span class="val" data-for="headSideY">200</span></div>
+                    <div class="control-row"><label>頭部深度</label><input type="range" id="headDepth" min="5" max="150" value="22"><span class="val" data-for="headDepth">22</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
-
-<div style="float:right; width:400px;">
-    <h4><b>第一步,上傳圖片:</b></h4> <input type="file" id="imgInput" accept=".jpg,.jpeg,.png">
-    <br>
-    <br>
-    <h4><b>第二步,找到身高參考系, 輸入身高調整尺參數對齊立繪</b></h4>
-    <h4>請輸入身高 (cm): <input type="text" id="heightInput" value="160"></h4>
-    <h4><p id="scaleText">比例尺: 1px = ? cm</p></h4>
-    <p>&nbsp;&nbsp;&nbsp;&nbsp;身高量尺X座標位置: <input type="range" id="rulerX" min="0" max="800" value = "50"></p>
-    <p>&nbsp;&nbsp;&nbsp;&nbsp;身高量尺Y座標位置: <input type="range" id="rulerY" min="0" max="800" value = "600"></p>
-    <p>&nbsp;&nbsp;&nbsp;&nbsp;身高量尺長度: <input type="range" id="rulerHeight" min="50" max="800" value = "500"></p>
-    <br>
-    <br>
-    <h4><b>第三步,來用兩個橢圓標記正面立繪中歐派正面模型:</b></h4>
-    <p>&nbsp;&nbsp;&nbsp;&nbsp;歐派中心點X座標位置: <input type="range" id="centerX" min="0" max="800" value="300"></p>
-    <p>&nbsp;&nbsp;&nbsp;&nbsp;歐派中心點Y座標位置: <input type="range" id="centerY" min="0" max="800" value="300"></p>
-    <p>&nbsp;&nbsp;&nbsp;&nbsp;兩邊歐派距离: <input type="range" id="distance" min="0" max="400" value="50"></p>
-    <p>&nbsp;&nbsp;&nbsp;&nbsp;歐派長度: <input type="range" id="radiusY" min="10" max="200" value="30"></p>
-    <p>&nbsp;&nbsp;&nbsp;&nbsp;歐派寬度: <input type="range" id="radiusX" min="10" max="200" value="30"></p>
-    <p>&nbsp;&nbsp;&nbsp;&nbsp;身體寬度: <input type="range" id="bodyX" min="10" max="200" value="40"></p>
-    <br>
-    <br>
-    <h4><b>第四步,一個圓跟長方形標記歐派與身體之間的距離:</b></h4>
-    <p>&nbsp;&nbsp;&nbsp;&nbsp;身體宽度: <input type="range" id="rectangleWidth" min="10" max="400" value="80"></p>
-    <p>&nbsp;&nbsp;&nbsp;&nbsp;身體高度: <input type="range" id="rectangleHeight" min="10" max="400" value="40"></p>
-    <p>&nbsp;&nbsp;&nbsp;&nbsp;身體傾斜角度: <input type="range" id="rotation" min="-45" max="45" value="0"></p>
-    <p>&nbsp;&nbsp;&nbsp;&nbsp;歐派與身體距離: <input type="range" id="distanceQ1Q2" min="10" max="400" value="60"></p>
-    <p>&nbsp;&nbsp;&nbsp;&nbsp;整體X座標: <input type="range" id="opSideX" min="0" max="800" value="600"></p>
-    <p>&nbsp;&nbsp;&nbsp;&nbsp;整體Y座標: <input type="range" id="opSideY" min="0" max="800" value="300"></p>
-</div>
-
 
 <script>
-	var canvas = document.getElementById('myCanvas');
-	var context = canvas.getContext('2d');
-	
-	var imgElement = document.createElement('img');
-	imgElement.addEventListener('load', function() {
-	    redrawCanvas();
-	}, false);
-	
-	var imgInput = document.getElementById('imgInput');
-	imgInput.addEventListener('change', function(e) {
-	    var file = e.target.files[0];
-	    var reader = new FileReader();
-	
-	    reader.onload = function(event) {
-	        imgElement.src = event.target.result;
-	    };
-	
-	    reader.readAsDataURL(file);
-	});
-	
-	var controls = [
-	    'heightInput', 'rulerX', 'rulerY', 'rulerHeight',
-	    'centerX', 'centerY', 'distance', 'radiusX', 'radiusY',
-	    'opSideX', 'opSideY', 'distanceQ1Q2', 'rectangleWidth', 'rectangleHeight', 'rotation'
-	];
-	
-	controls.forEach(function(id) {
-	    document.getElementById(id).addEventListener('input', redrawCanvas);
-	});
+// ==================== Tab Switching ====================
+var currentTab = '2d';
+document.querySelectorAll('.tab-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        currentTab = this.dataset.tab;
+        document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+        this.classList.add('active');
+        document.getElementById('panel2d').classList.toggle('active', currentTab === '2d');
+        document.getElementById('panel3d').classList.toggle('active', currentTab === '3d');
+        document.getElementById('lightControls').classList.toggle('visible', currentTab === '3d');
+        if (currentTab === '2d') resizeCanvas();
+        if (currentTab === '3d') { resizeThree(); update3D(); }
+    });
+});
 
-    // 繪製身高量尺
-    function drawRuler() {
-        var rulerX = document.getElementById('rulerX').value;
-        var rulerY = document.getElementById('rulerY').value;
-        var rulerHeight = document.getElementById('rulerHeight').value;
-        var physicalHeight = document.getElementById('heightInput').value;
+// ==================== 2D Canvas ====================
+var canvas = document.getElementById('myCanvas');
+var ctx = canvas.getContext('2d');
+var imgLoaded = false;
+var imgElement = new Image();
+var canvasW = 800, canvasH = 800;
 
-        var scale = physicalHeight / rulerHeight;
-        document.getElementById('scaleText').innerHTML = '比例尺: 1px = ' + scale.toFixed(2) + ' cm';
+function fitCanvasToImage() {
+    var iw = imgElement.naturalWidth;
+    var ih = imgElement.naturalHeight;
+    if (!iw || !ih) return;
 
-        context.beginPath();
-        context.moveTo(rulerX, rulerY); // 下方起點
-        context.lineTo(rulerX, Number(rulerY) - Number(rulerHeight)); // 身高頂點
-        context.lineWidth = 5;
-        context.strokeStyle = 'blue';
-        context.stroke();
-		// 畫文字
-        context.font = '20px Arial';
-        context.fillText(physicalHeight + ' cm', rulerX-20, Number(rulerY) - Number(rulerHeight) - 10);
+    var maxDim = 800;
+    if (iw >= ih) {
+        canvasW = maxDim;
+        canvasH = Math.round(maxDim * (ih / iw));
+    } else {
+        canvasH = maxDim;
+        canvasW = Math.round(maxDim * (iw / ih));
     }
-	
-	// OP 正面
-	function drawOPFront() {
-	    var centerX = document.getElementById('centerX').value;
-	    var centerY = document.getElementById('centerY').value;
-	    var distance = document.getElementById('distance').value / 2;
-	    var radiusX = document.getElementById('radiusX').value;
-	    var radiusY = document.getElementById('radiusY').value;
+    canvas.width = canvasW;
+    canvas.height = canvasH;
 
-	    [Number(centerX) - distance, Number(centerX) + distance].forEach(function(px) {
-	        context.beginPath();
-	        context.ellipse(px, centerY, radiusX, radiusY, 0, 0, Math.PI*2);
-	        context.lineWidth = 2;
-	        context.strokeStyle = 'red';
-	
-	        context.stroke();
-	    });
-	}
+    // Update slider max values to match canvas dimensions
+    var xSliders = ['rulerX','centerX','headX','opSideX','headSideX'];
+    var ySliders = ['rulerY','centerY','headY','opSideY','headSideY'];
+    xSliders.forEach(function(id) { document.getElementById(id).max = canvasW; });
+    ySliders.forEach(function(id) { document.getElementById(id).max = canvasH; });
+    document.getElementById('rulerHeight').max = canvasH;
+}
 
-	// OP 側面
-	function drawOPSide() {
-	    var rectCenterX = document.getElementById('opSideX').value;
-	    var rectCenterY = document.getElementById('opSideY').value;
-	
-	    var rectWidth = document.getElementById('rectangleWidth').value;
-	    var rectHeight = document.getElementById('rectangleHeight').value;
-	
-	    var angle = document.getElementById('rotation').value * -1 * Math.PI / 180;
-	    var distance = document.getElementById('distanceQ1Q2').value;
-	
-	    var offsetX = distance * Math.cos(angle);
-	    var offsetY = distance * Math.sin(angle);
-	
-	    var circleCenterX = parseFloat(rectCenterX) - parseFloat(offsetX);
-	    var circleCenterY = parseFloat(rectCenterY) + parseFloat(offsetY);
-	    
-	    var radiusX = document.getElementById('radiusX').value;
-		
-	    context.save();  // save current state
-	
-	    // Draw the rectangle
-	    context.translate(rectCenterX, rectCenterY);  // start from the rectangle center point
-	    context.rotate(-angle);   // adjust the angle 
-	    context.beginPath();
-	    context.rect(-rectWidth / 2, -rectHeight / 2, rectWidth, rectHeight);
-	    context.strokeStyle = 'green';
-	    context.lineWidth = 2;
-	    context.stroke();
-	
-	    context.restore();   // restore to the saved state
-	
-	    // Draw the circle
-	    context.beginPath();
-	    context.arc(circleCenterX, circleCenterY, radiusX, 0, Math.PI*2);
-	    context.strokeStyle = 'green';
-	    context.lineWidth = 2;
-	    context.stroke();
-	}
+function resizeCanvas() {
+    var area = document.querySelector('.canvas-area');
+    if (!area) return;
+    var aw = area.clientWidth - 40;
+    var ah = area.clientHeight - 40;
+    var ratio = canvasW / canvasH;
+    var w, h;
+    if (aw / ah > ratio) {
+        h = Math.min(ah, canvasH);
+        w = h * ratio;
+    } else {
+        w = Math.min(aw, canvasW);
+        h = w / ratio;
+    }
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+}
+window.addEventListener('resize', function() {
+    if (currentTab === '2d') resizeCanvas();
+    else resizeThree();
+});
+resizeCanvas();
 
-	// 一次畫出所有物件
-	function redrawCanvas() {
-	    context.clearRect(0, 0, canvas.width, canvas.height); // 清空畫布
-	    context.drawImage(imgElement, 0, 0, canvas.width, canvas.height); //畫圖
-	    drawRuler();   // 畫尺
-	    drawOPFront(); // 更新正面歐派參考圖
-	    drawOPSide();  // 更新側面歐派參考圖
-	}
+imgElement.addEventListener('load', function() {
+    imgLoaded = true;
+    document.getElementById('canvasHint').classList.add('hidden');
+    fitCanvasToImage();
+    resizeCanvas();
+    redrawCanvas();
+});
+
+document.getElementById('imgInput').addEventListener('change', function(e) {
+    var file = e.target.files[0];
+    if (!file) return;
+    document.getElementById('uploadText').innerHTML = '<span class="filename">' + file.name + '</span>';
+    var reader = new FileReader();
+    reader.onload = function(ev) { imgElement.src = ev.target.result; };
+    reader.readAsDataURL(file);
+});
+
+var uz = document.getElementById('uploadZone');
+uz.addEventListener('dragover', function(e) { e.preventDefault(); uz.style.borderColor = 'var(--accent2)'; });
+uz.addEventListener('dragleave', function() { uz.style.borderColor = ''; });
+uz.addEventListener('drop', function(e) {
+    e.preventDefault(); uz.style.borderColor = '';
+    var file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) {
+        document.getElementById('uploadText').innerHTML = '<span class="filename">' + file.name + '</span>';
+        var reader = new FileReader();
+        reader.onload = function(ev) { imgElement.src = ev.target.result; };
+        reader.readAsDataURL(file);
+    }
+});
+
+['heightInput','rulerX','rulerY','rulerHeight','centerX','centerY','distance','radiusX','radiusY','shoulderW','waistW','opSideX','opSideY','distanceQ1Q2','rectangleWidth','rectangleHeight','rotation','headX','headY','headRX','headRY','headSideX','headSideY','headDepth'].forEach(function(id) {
+    document.getElementById(id).addEventListener('input', function() {
+        var span = document.querySelector('.val[data-for="'+id+'"]');
+        if (span) span.textContent = this.value + (id === 'rotation' ? '°' : '');
+        redrawCanvas();
+        update3D();
+    });
+});
+
+function drawRuler() {
+    var x = +document.getElementById('rulerX').value;
+    var y = +document.getElementById('rulerY').value;
+    var h = +document.getElementById('rulerHeight').value;
+    var cm = +document.getElementById('heightInput').value;
+    document.getElementById('scaleText').textContent = '1px = ' + (cm/h).toFixed(2) + ' cm';
+    ctx.strokeStyle = '#4ea8de'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x,y-h); ctx.stroke();
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x-8,y); ctx.lineTo(x+8,y); ctx.moveTo(x-8,y-h); ctx.lineTo(x+8,y-h); ctx.stroke();
+    ctx.fillStyle = '#4ea8de'; ctx.font = '600 14px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(cm+' cm', x, y-h-10);
+    ctx.textAlign = 'start';
+}
+
+function drawOPFront() {
+    var cx = +document.getElementById('centerX').value;
+    var cy = +document.getElementById('centerY').value;
+    var d = +document.getElementById('distance').value / 2;
+    var rx = +document.getElementById('radiusX').value;
+    var ry = +document.getElementById('radiusY').value;
+    var sw = +document.getElementById('shoulderW').value;
+    var ww = +document.getElementById('waistW').value;
+    var bh = +document.getElementById('rectangleHeight').value;
+
+    // Trapezoid body: shoulder at top, waist at bottom
+    ctx.strokeStyle = 'rgba(233,69,96,0.5)'; ctx.lineWidth = 2;
+    ctx.setLineDash([6, 4]);
+    ctx.beginPath();
+    ctx.moveTo(cx - sw/2, cy - bh/2);  // top-left (shoulder)
+    ctx.lineTo(cx + sw/2, cy - bh/2);  // top-right (shoulder)
+    ctx.lineTo(cx + ww/2, cy + bh/2);  // bottom-right (waist)
+    ctx.lineTo(cx - ww/2, cy + bh/2);  // bottom-left (waist)
+    ctx.closePath();
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.strokeStyle = 'rgba(233,69,96,0.85)'; ctx.lineWidth = 2;
+    [cx-d, cx+d].forEach(function(px) {
+        ctx.beginPath(); ctx.ellipse(px,cy,rx,ry,0,0,Math.PI*2); ctx.stroke();
+    });
+}
+
+function drawHead() {
+    var hx = +document.getElementById('headX').value;
+    var hy = +document.getElementById('headY').value;
+    var hrx = +document.getElementById('headRX').value;
+    var hry = +document.getElementById('headRY').value;
+
+    ctx.strokeStyle = 'rgba(176,124,216,0.85)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(hx, hy, hrx, hry, 0, 0, Math.PI*2); ctx.stroke();
+
+    var sx = +document.getElementById('headSideX').value;
+    var sy = +document.getElementById('headSideY').value;
+    var hd = +document.getElementById('headDepth').value;
+    ctx.beginPath(); ctx.ellipse(sx, sy, hd, hry, 0, 0, Math.PI*2); ctx.stroke();
+}
+
+function drawOPSide() {
+    var rcx = +document.getElementById('opSideX').value;
+    var rcy = +document.getElementById('opSideY').value;
+    var rw = +document.getElementById('rectangleWidth').value;
+    var rh = +document.getElementById('rectangleHeight').value;
+    var ang = +document.getElementById('rotation').value * -Math.PI/180;
+    var dist = +document.getElementById('distanceQ1Q2').value;
+    var rx = +document.getElementById('radiusX').value;
+    var ry = +document.getElementById('radiusY').value;
+    var ccx = rcx - dist*Math.cos(ang);
+    var ccy = rcy + dist*Math.sin(ang);
+    ctx.strokeStyle = 'rgba(86,197,150,0.85)'; ctx.lineWidth = 2;
+    ctx.save(); ctx.translate(rcx,rcy); ctx.rotate(-ang);
+    ctx.beginPath(); ctx.rect(-rw/2,-rh/2,rw,rh); ctx.stroke();
+    ctx.restore();
+    ctx.beginPath(); ctx.ellipse(ccx,ccy,rx,ry,-ang,0,Math.PI*2); ctx.stroke();
+}
+
+function redrawCanvas() {
+    ctx.clearRect(0, 0, canvasW, canvasH);
+    if (imgLoaded) ctx.drawImage(imgElement, 0, 0, canvasW, canvasH);
+    drawRuler(); drawHead(); drawOPFront(); drawOPSide();
+}
+redrawCanvas();
+
+// ==================== Three.js 3D ====================
+(function() {
+    var threeCanvas = document.getElementById('threeCanvas');
+    var viewArea = document.querySelector('.view-area');
+
+    var renderer = new THREE.WebGLRenderer({ canvas: threeCanvas, antialias: true });
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setClearColor(0x000000);
+
+    var scene = new THREE.Scene();
+    var camera = new THREE.PerspectiveCamera(50, 2, 0.1, 1000);
+    camera.position.set(0, 0, 8);
+
+    var ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+    scene.add(ambientLight);
+    var dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
+    dirLight.position.set(3, 3, 5);
+    scene.add(dirLight);
+
+    var bodyMat = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.5, metalness: 0.1 });
+    var sphereMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, roughness: 0.4, metalness: 0.1 });
+
+    var bodyMesh, leftSphere, rightSphere, headMesh;
+    var headMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, roughness: 0.4, metalness: 0.1 });
+
+    function getScale() {
+        var h = +document.getElementById('rulerHeight').value;
+        var cm = +document.getElementById('heightInput').value;
+        return (cm / h) * 0.02;
+    }
+
+    function createMeshes() {
+        if (bodyMesh) { scene.remove(bodyMesh); bodyMesh.geometry.dispose(); }
+        if (leftSphere) { scene.remove(leftSphere); leftSphere.geometry.dispose(); }
+        if (rightSphere) { scene.remove(rightSphere); rightSphere.geometry.dispose(); }
+        if (headMesh) { scene.remove(headMesh); headMesh.geometry.dispose(); }
+
+        var s = getScale();
+        var sw = +document.getElementById('shoulderW').value * s;
+        var ww = +document.getElementById('waistW').value * s;
+        var bodyH = +document.getElementById('rectangleHeight').value * s;
+        var bodyD = +document.getElementById('rectangleWidth').value * s;
+        var rx = +document.getElementById('radiusX').value * s;
+        var ry = +document.getElementById('radiusY').value * s;
+        var dist = +document.getElementById('distance').value / 2 * s;
+        var depth = +document.getElementById('distanceQ1Q2').value * s;
+        var ang = +document.getElementById('rotation').value * Math.PI / 180;
+
+        // Trapezoid body using Shape + ExtrudeGeometry
+        var shape = new THREE.Shape();
+        shape.moveTo(-sw/2,  bodyH/2);   // top-left (shoulder)
+        shape.lineTo( sw/2,  bodyH/2);   // top-right (shoulder)
+        shape.lineTo( ww/2, -bodyH/2);   // bottom-right (waist)
+        shape.lineTo(-ww/2, -bodyH/2);   // bottom-left (waist)
+        shape.closePath();
+        var bodyGeo = new THREE.ExtrudeGeometry(shape, { depth: bodyD, bevelEnabled: false });
+        bodyGeo.translate(0, 0, -bodyD/2);
+        bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
+        bodyMesh.rotation.z = ang;
+        scene.add(bodyMesh);
+
+        var sphereGeo = new THREE.SphereGeometry(1, 32, 32);
+        leftSphere = new THREE.Mesh(sphereGeo, sphereMat);
+        leftSphere.scale.set(rx, ry, depth * 0.4);
+        leftSphere.position.set(-dist, 0, bodyD / 2 + depth * 0.2);
+        scene.add(leftSphere);
+
+        rightSphere = new THREE.Mesh(sphereGeo.clone(), sphereMat);
+        rightSphere.scale.set(rx, ry, depth * 0.4);
+        rightSphere.position.set(dist, 0, bodyD / 2 + depth * 0.2);
+        scene.add(rightSphere);
+
+        // Head
+        var hrx = +document.getElementById('headRX').value * s;
+        var hry = +document.getElementById('headRY').value * s;
+        var hdp = +document.getElementById('headDepth').value * s;
+
+        var headGeo = new THREE.SphereGeometry(1, 32, 32);
+        headMesh = new THREE.Mesh(headGeo, headMat);
+        headMesh.scale.set(hrx, hry, hdp);
+        headMesh.position.set(0, bodyH / 2 + hry, 0);
+        scene.add(headMesh);
+    }
+
+    // Orbit controls (mouse + touch)
+    var isDragging = false, isPanning = false, prevMouse = {x:0,y:0};
+    var orbitAngle = {x:0, y:0.3}, orbitRadius = 5;
+    var panOffset = {x:0, y:0};
+
+    threeCanvas.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+
+    // Mouse: left=rotate, right=pan
+    threeCanvas.addEventListener('mousedown', function(e) {
+        prevMouse = {x:e.clientX, y:e.clientY};
+        if (e.button === 2) { isPanning = true; }
+        else { isDragging = true; }
+    });
+    window.addEventListener('mousemove', function(e) {
+        var dx = e.clientX - prevMouse.x;
+        var dy = e.clientY - prevMouse.y;
+        if (isDragging) {
+            orbitAngle.x -= dx * 0.008;
+            orbitAngle.y = Math.max(-1.2, Math.min(1.2, orbitAngle.y + dy * 0.008));
+        } else if (isPanning) {
+            panOffset.x -= dx * 0.005;
+            panOffset.y += dy * 0.005;
+        }
+        prevMouse = {x:e.clientX, y:e.clientY};
+    });
+    window.addEventListener('mouseup', function() { isDragging = false; isPanning = false; });
+    threeCanvas.addEventListener('wheel', function(e) {
+        e.preventDefault();
+        orbitRadius = Math.max(2, Math.min(20, orbitRadius + e.deltaY * 0.01));
+    }, {passive:false});
+
+    // Touch: 1 finger=rotate, 2 fingers=pan+zoom
+    var lastTouchDist = 0, lastTouchCenter = {x:0,y:0};
+    threeCanvas.addEventListener('touchstart', function(e) {
+        e.preventDefault();
+        if (e.touches.length === 1) {
+            isDragging = true; isPanning = false;
+            prevMouse = {x:e.touches[0].clientX, y:e.touches[0].clientY};
+        } else if (e.touches.length === 2) {
+            isDragging = false; isPanning = true;
+            var dx = e.touches[0].clientX - e.touches[1].clientX;
+            var dy = e.touches[0].clientY - e.touches[1].clientY;
+            lastTouchDist = Math.sqrt(dx*dx + dy*dy);
+            lastTouchCenter = {
+                x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+                y: (e.touches[0].clientY + e.touches[1].clientY) / 2
+            };
+        }
+    }, {passive:false});
+    threeCanvas.addEventListener('touchmove', function(e) {
+        e.preventDefault();
+        if (e.touches.length === 1 && isDragging) {
+            var tx = e.touches[0].clientX, ty = e.touches[0].clientY;
+            orbitAngle.x -= (tx - prevMouse.x) * 0.008;
+            orbitAngle.y = Math.max(-1.2, Math.min(1.2, orbitAngle.y + (ty - prevMouse.y) * 0.008));
+            prevMouse = {x:tx, y:ty};
+        } else if (e.touches.length === 2) {
+            // Pinch zoom
+            var dx = e.touches[0].clientX - e.touches[1].clientX;
+            var dy = e.touches[0].clientY - e.touches[1].clientY;
+            var dist = Math.sqrt(dx*dx + dy*dy);
+            if (lastTouchDist > 0) {
+                orbitRadius = Math.max(2, Math.min(20, orbitRadius * (lastTouchDist / dist)));
+            }
+            lastTouchDist = dist;
+            // Pan
+            var cx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+            var cy = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+            panOffset.x -= (cx - lastTouchCenter.x) * 0.005;
+            panOffset.y += (cy - lastTouchCenter.y) * 0.005;
+            lastTouchCenter = {x:cx, y:cy};
+        }
+    }, {passive:false});
+    threeCanvas.addEventListener('touchend', function() { isDragging = false; isPanning = false; lastTouchDist = 0; });
+
+    // Light controls
+    document.getElementById('lightX').addEventListener('input', updateLight);
+    document.getElementById('lightY').addEventListener('input', updateLight);
+    document.getElementById('lightIntensity').addEventListener('input', updateLight);
+
+    function updateLight() {
+        var lx = +document.getElementById('lightX').value * Math.PI/180;
+        var ly = +document.getElementById('lightY').value * Math.PI/180;
+        var r = 6;
+        dirLight.position.set(r*Math.cos(ly)*Math.sin(lx), r*Math.sin(ly), r*Math.cos(ly)*Math.cos(lx));
+        dirLight.intensity = +document.getElementById('lightIntensity').value / 100;
+    }
+
+    window.resizeThree = function() {
+        var panel = document.getElementById('panel3d');
+        var w = panel.clientWidth || viewArea.clientWidth;
+        var h = panel.clientHeight || (viewArea.clientHeight - 45);
+        if (w <= 0 || h <= 0) return;
+        renderer.setSize(w, h);
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+    };
+
+    window.update3D = function() { createMeshes(); };
+
+    function animate() {
+        requestAnimationFrame(animate);
+        camera.position.x = orbitRadius * Math.sin(orbitAngle.x) * Math.cos(orbitAngle.y) + panOffset.x;
+        camera.position.y = orbitRadius * Math.sin(orbitAngle.y) + panOffset.y;
+        camera.position.z = orbitRadius * Math.cos(orbitAngle.x) * Math.cos(orbitAngle.y);
+        camera.lookAt(panOffset.x, panOffset.y, 0);
+        renderer.render(scene, camera);
+    }
+
+    createMeshes();
+    updateLight();
+    animate();
+})();
 </script>
-
 </body>
 </html>

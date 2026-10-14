@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+
+	<head>
+		<title>oppai 測量工具</title>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+		
+		<style>
+			#text {font-family:"微軟正黑體";font-size:16px;}
+			#point_Y {font-family:"微軟正黑體";color:#FFFF00;font-size:20px;}
+		</style>
+		<script type="text/JavaScript" src="../../flot.js"></script>	
+	</head>
+
+<body>
+<h1>三視圖丈量小工具</h1>
+
+<div style="float:left; width:800px;">
+    <h4>工作區域</h4>
+    <canvas id="myCanvas" width="800" height="800" style="border:1px solid #d3d3d3;">
+    Your browser does not support the HTML5 canvas tag.</canvas>
+</div>
+
+<div style="float:right; width:400px;">
+    <h4><b>第一步,上傳圖片:</b></h4> <input type="file" id="imgInput" accept=".jpg,.jpeg,.png">
+    <br>
+    <br>
+    <h4><b>第二步,找到身高參考系, 輸入身高調整尺參數對齊立繪</b></h4>
+    <h4>請輸入身高 (cm): <input type="text" id="heightInput" value="160"></h4>
+    <h4><p id="scaleText">比例尺: 1px = ? cm</p></h4>
+    <p>&nbsp;&nbsp;&nbsp;&nbsp;身高量尺X座標位置: <input type="range" id="rulerX" min="0" max="800" value = "50"></p>
+    <p>&nbsp;&nbsp;&nbsp;&nbsp;身高量尺Y座標位置: <input type="range" id="rulerY" min="0" max="800" value = "600"></p>
+    <p>&nbsp;&nbsp;&nbsp;&nbsp;身高量尺長度: <input type="range" id="rulerHeight" min="50" max="800" value = "500"></p>
+    <br>
+    <br>
+    <h4><b>第三步,來用兩個橢圓標記正面立繪中歐派正面模型:</b></h4>
+    <p>&nbsp;&nbsp;&nbsp;&nbsp;歐派中心點X座標位置: <input type="range" id="centerX" min="0" max="800" value="300"></p>
+    <p>&nbsp;&nbsp;&nbsp;&nbsp;歐派中心點Y座標位置: <input type="range" id="centerY" min="0" max="800" value="300"></p>
+    <p>&nbsp;&nbsp;&nbsp;&nbsp;兩邊歐派距离: <input type="range" id="distance" min="0" max="400" value="50"></p>
+    <p>&nbsp;&nbsp;&nbsp;&nbsp;歐派長度: <input type="range" id="radiusY" min="10" max="200" value="30"></p>
+    <p>&nbsp;&nbsp;&nbsp;&nbsp;歐派寬度: <input type="range" id="radiusX" min="10" max="200" value="30"></p>
+    <p>&nbsp;&nbsp;&nbsp;&nbsp;身體寬度: <input type="range" id="bodyX" min="10" max="200" value="40"></p>
+    <br>
+    <br>
+    <h4><b>第四步,一個圓跟長方形標記歐派與身體之間的距離:</b></h4>
+    <p>&nbsp;&nbsp;&nbsp;&nbsp;身體宽度: <input type="range" id="rectangleWidth" min="10" max="400" value="80"></p>
+    <p>&nbsp;&nbsp;&nbsp;&nbsp;身體高度: <input type="range" id="rectangleHeight" min="10" max="400" value="40"></p>
+    <p>&nbsp;&nbsp;&nbsp;&nbsp;身體傾斜角度: <input type="range" id="rotation" min="-45" max="45" value="0"></p>
+    <p>&nbsp;&nbsp;&nbsp;&nbsp;歐派與身體距離: <input type="range" id="distanceQ1Q2" min="10" max="400" value="60"></p>
+    <p>&nbsp;&nbsp;&nbsp;&nbsp;整體X座標: <input type="range" id="opSideX" min="0" max="800" value="600"></p>
+    <p>&nbsp;&nbsp;&nbsp;&nbsp;整體Y座標: <input type="range" id="opSideY" min="0" max="800" value="300"></p>
+</div>
+
+
+<script>
+	var canvas = document.getElementById('myCanvas');
+	var context = canvas.getContext('2d');
+	
+	var imgElement = document.createElement('img');
+	imgElement.addEventListener('load', function() {
+	    redrawCanvas();
+	}, false);
+	
+	var imgInput = document.getElementById('imgInput');
+	imgInput.addEventListener('change', function(e) {
+	    var file = e.target.files[0];
+	    var reader = new FileReader();
+	
+	    reader.onload = function(event) {
+	        imgElement.src = event.target.result;
+	    };
+	
+	    reader.readAsDataURL(file);
+	});
+	
+	var controls = [
+	    'heightInput', 'rulerX', 'rulerY', 'rulerHeight',
+	    'centerX', 'centerY', 'distance', 'radiusX', 'radiusY',
+	    'opSideX', 'opSideY', 'distanceQ1Q2', 'rectangleWidth', 'rectangleHeight', 'rotation'
+	];
+	
+	controls.forEach(function(id) {
+	    document.getElementById(id).addEventListener('input', redrawCanvas);
+	});
+
+    // 繪製身高量尺
+    function drawRuler() {
+        var rulerX = document.getElementById('rulerX').value;
+        var rulerY = document.getElementById('rulerY').value;
+        var rulerHeight = document.getElementById('rulerHeight').value;
+        var physicalHeight = document.getElementById('heightInput').value;
+
+        var scale = physicalHeight / rulerHeight;
+        document.getElementById('scaleText').innerHTML = '比例尺: 1px = ' + scale.toFixed(2) + ' cm';
+
+        context.beginPath();
+        context.moveTo(rulerX, rulerY); // 下方起點
+        context.lineTo(rulerX, Number(rulerY) - Number(rulerHeight)); // 身高頂點
+        context.lineWidth = 5;
+        context.strokeStyle = 'blue';
+        context.stroke();
+		// 畫文字
+        context.font = '20px Arial';
+        context.fillText(physicalHeight + ' cm', rulerX-20, Number(rulerY) - Number(rulerHeight) - 10);
+    }
+	
+	// OP 正面
+	function drawOPFront() {
+	    var centerX = document.getElementById('centerX').value;
+	    var centerY = document.getElementById('centerY').value;
+	    var distance = document.getElementById('distance').value / 2;
+	    var radiusX = document.getElementById('radiusX').value;
+	    var radiusY = document.getElementById('radiusY').value;
+
+	    [Number(centerX) - distance, Number(centerX) + distance].forEach(function(px) {
+	        context.beginPath();
+	        context.ellipse(px, centerY, radiusX, radiusY, 0, 0, Math.PI*2);
+	        context.lineWidth = 2;
+	        context.strokeStyle = 'red';
+	
+	        context.stroke();
+	    });
+	}
+
+	// OP 側面
+	function drawOPSide() {
+	    var rectCenterX = document.getElementById('opSideX').value;
+	    var rectCenterY = document.getElementById('opSideY').value;
+	
+	    var rectWidth = document.getElementById('rectangleWidth').value;
+	    var rectHeight = document.getElementById('rectangleHeight').value;
+	
+	    var angle = document.getElementById('rotation').value * -1 * Math.PI / 180;
+	    var distance = document.getElementById('distanceQ1Q2').value;
+	
+	    var offsetX = distance * Math.cos(angle);
+	    var offsetY = distance * Math.sin(angle);
+	
+	    var circleCenterX = parseFloat(rectCenterX) - parseFloat(offsetX);
+	    var circleCenterY = parseFloat(rectCenterY) + parseFloat(offsetY);
+	    
+	    var radiusX = document.getElementById('radiusX').value;
+		
+	    context.save();  // save current state
+	
+	    // Draw the rectangle
+	    context.translate(rectCenterX, rectCenterY);  // start from the rectangle center point
+	    context.rotate(-angle);   // adjust the angle 
+	    context.beginPath();
+	    context.rect(-rectWidth / 2, -rectHeight / 2, rectWidth, rectHeight);
+	    context.strokeStyle = 'green';
+	    context.lineWidth = 2;
+	    context.stroke();
+	
+	    context.restore();   // restore to the saved state
+	
+	    // Draw the circle
+	    context.beginPath();
+	    context.arc(circleCenterX, circleCenterY, radiusX, 0, Math.PI*2);
+	    context.strokeStyle = 'green';
+	    context.lineWidth = 2;
+	    context.stroke();
+	}
+
+	// 一次畫出所有物件
+	function redrawCanvas() {
+	    context.clearRect(0, 0, canvas.width, canvas.height); // 清空畫布
+	    context.drawImage(imgElement, 0, 0, canvas.width, canvas.height); //畫圖
+	    drawRuler();   // 畫尺
+	    drawOPFront(); // 更新正面歐派參考圖
+	    drawOPSide();  // 更新側面歐派參考圖
+	}
+</script>
+
+</body>
+</html>
