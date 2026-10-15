@@ -174,6 +174,36 @@ if ($loggedIn) {
             color: #fff;
             box-shadow: 0 4px 16px rgba(0,0,0,0.15);
             cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+        }
+        .btn .fill {
+            position: absolute;
+            top: 0; left: 0; bottom: 0;
+            width: 0;
+            background: rgba(255,255,255,0.25);
+            border-radius: 16px;
+            transition: none;
+            pointer-events: none;
+        }
+        .btn.holding .fill {
+            width: 100%;
+            transition: width 1.5s linear;
+        }
+        .btn .btn-label {
+            position: relative;
+            z-index: 1;
+            pointer-events: none;
+        }
+        .btn-hint {
+            text-align: center;
+            color: var(--muted);
+            font-size: 0.85rem;
+            margin-top: -12px;
+            margin-bottom: 8px;
         }
         .btn-bed { background: #27ae60; }
         .btn-sleep { background: #8e44ad; }
@@ -230,11 +260,54 @@ if ($loggedIn) {
     </div>
     <form class="actions" method="post">
         <input type="hidden" name="csrf" value="<?= h($_SESSION['csrf']) ?>">
-        <?php if($enable['bed']): ?><button class="btn btn-bed" type="submit" name="action" value="bed">躺　床</button><?php endif; ?>
-        <?php if($enable['sleep']): ?><button class="btn btn-sleep" type="submit" name="action" value="sleep">睡　眠</button><?php endif; ?>
-        <?php if($enable['lazy']): ?><button class="btn btn-lazy" type="submit" name="action" value="lazy">賴　床</button><?php endif; ?>
-        <?php if($enable['wake']): ?><button class="btn btn-wake" type="submit" name="action" value="wake">清　醒</button><?php endif; ?>
+        <?php if($enable['bed']): ?><button class="btn btn-bed" type="button" data-action="bed"><span class="fill"></span><span class="btn-label">躺　床</span></button><?php endif; ?>
+        <?php if($enable['sleep']): ?><button class="btn btn-sleep" type="button" data-action="sleep"><span class="fill"></span><span class="btn-label">睡　眠</span></button><?php endif; ?>
+        <?php if($enable['lazy']): ?><button class="btn btn-lazy" type="button" data-action="lazy"><span class="fill"></span><span class="btn-label">賴　床</span></button><?php endif; ?>
+        <?php if($enable['wake']): ?><button class="btn btn-wake" type="button" data-action="wake"><span class="fill"></span><span class="btn-label">清　醒</span></button><?php endif; ?>
+        <div class="btn-hint">長按 1.5 秒以打卡</div>
     </form>
+<script>
+(function() {
+    var HOLD_MS = 1500;
+    var form = document.querySelector('form.actions');
+    if (!form) return;
+    var timer = null;
+    var active = null;
+
+    function start(btn) {
+        if (active) return;
+        active = btn;
+        btn.classList.add('holding');
+        timer = setTimeout(function() {
+            btn.classList.remove('holding');
+            var input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'action';
+            input.value = btn.dataset.action;
+            form.appendChild(input);
+            form.submit();
+        }, HOLD_MS);
+    }
+
+    function cancel() {
+        if (timer) { clearTimeout(timer); timer = null; }
+        if (active) { active.classList.remove('holding'); active = null; }
+    }
+
+    form.querySelectorAll('.btn').forEach(function(btn) {
+        btn.addEventListener('mousedown', function(e) { if (e.button === 0) start(btn); });
+        btn.addEventListener('touchstart', function(e) { e.preventDefault(); start(btn); }, {passive: false});
+    });
+
+    document.addEventListener('mouseup', cancel);
+    document.addEventListener('mouseleave', cancel);
+    document.addEventListener('touchend', cancel);
+    document.addEventListener('touchcancel', cancel);
+    window.addEventListener('contextmenu', function(e) {
+        if (active) e.preventDefault();
+    });
+})();
+</script>
 <?php endif; ?>
 </body>
 </html>
