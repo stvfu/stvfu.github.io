@@ -8,14 +8,15 @@ const MODELS = [
     'claude-opus-5-5'   => ['label' => 'Claude Opus 5.5',            'version' => 'Opus 5.5',            'adaptive' => true,  'fallbacks' => true,  'provider' => 'claude'],
     'claude-fable-5-1'  => ['label' => 'Claude Fable 5.1（最強）',   'version' => 'Fable 5.1（最強）',   'adaptive' => true,  'fallbacks' => true,  'provider' => 'claude'],
     'claude-sonnet-5-5' => ['label' => 'Claude Sonnet 5.5（較快）',  'version' => 'Sonnet 5.5（較快）',  'adaptive' => true,  'fallbacks' => true,  'provider' => 'claude'],
-    'claude-haiku-4-5'  => ['label' => 'Claude Haiku 4.5（最快）',   'version' => 'Haiku 4.5（最快）',   'adaptive' => false, 'fallbacks' => false, 'provider' => 'claude'],
-    'gpt-4.1'           => ['label' => 'GPT-4.1（最新）',            'version' => '4.1（最新）',          'adaptive' => false, 'fallbacks' => false, 'provider' => 'openai'],
-    'gpt-4o'            => ['label' => 'GPT-4o',                     'version' => '4o',                   'adaptive' => false, 'fallbacks' => false, 'provider' => 'openai'],
+    'claude-haiku-5-5'  => ['label' => 'Claude Haiku 5.5（最快）',   'version' => 'Haiku 5.5（最快）',   'adaptive' => false, 'fallbacks' => false, 'provider' => 'claude'],
+    'gpt-5.5'           => ['label' => 'GPT-5.5（最新）',            'version' => '5.5（最新）',          'adaptive' => false, 'fallbacks' => false, 'provider' => 'openai'],
+    'gpt-5.4'           => ['label' => 'GPT-5.4',                    'version' => '5.4',                  'adaptive' => false, 'fallbacks' => false, 'provider' => 'openai'],
+    'gpt-5.4-mini'      => ['label' => 'GPT-5.4 Mini（較快）',       'version' => '5.4 Mini（較快）',     'adaptive' => false, 'fallbacks' => false, 'provider' => 'openai'],
     'grok-4.7'          => ['label' => 'Grok 4.7（最新）',           'version' => '4.7（最新）',          'adaptive' => false, 'fallbacks' => false, 'provider' => 'grok'],
-    'grok-3'            => ['label' => 'Grok 3',                     'version' => '3',                    'adaptive' => false, 'fallbacks' => false, 'provider' => 'grok'],
-    'gemini-3.1-pro-preview' => ['label' => 'Gemini 3.1 Pro',              'version' => '3.1 Pro',              'adaptive' => false, 'fallbacks' => false, 'provider' => 'gemini'],
-    'gemini-3.5-flash'      => ['label' => 'Gemini 3.5 Flash（較快）',    'version' => '3.5 Flash（較快）',    'adaptive' => false, 'fallbacks' => false, 'provider' => 'gemini'],
-    'gemini-3.5-flash-lite' => ['label' => 'Gemini 3.5 Flash Lite（最快）', 'version' => '3.5 Flash Lite（最快）', 'adaptive' => false, 'fallbacks' => false, 'provider' => 'gemini'],
+    'grok-4.5'          => ['label' => 'Grok 4.5',                   'version' => '4.5',                  'adaptive' => false, 'fallbacks' => false, 'provider' => 'grok'],
+    'gemini-4-argon'    => ['label' => 'Gemini 4 Argon（最新）',     'version' => '4 Argon（最新）',      'adaptive' => false, 'fallbacks' => false, 'provider' => 'gemini'],
+    'gemini-3.8-flash'  => ['label' => 'Gemini 3.8 Flash（較快）',   'version' => '3.8 Flash（較快）',    'adaptive' => false, 'fallbacks' => false, 'provider' => 'gemini'],
+    'gemini-3.6-flash'  => ['label' => 'Gemini 3.6 Flash（快）',     'version' => '3.6 Flash（快）',      'adaptive' => false, 'fallbacks' => false, 'provider' => 'gemini'],
 ];
 const PROVIDERS = ['claude' => 'Claude', 'openai' => 'GPT', 'grok' => 'Grok', 'gemini' => 'Gemini'];
 const DEFAULT_MODEL = 'claude-opus-5-5';

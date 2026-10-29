@@ -291,13 +291,15 @@ if ($mode === 'cli') {
         $apiMessages[] = $m;
     }
 
+    $tokenLimit = $provider === 'openai'
+        ? ['max_completion_tokens' => 16384]
+        : ['max_tokens' => 16384];
     $body = [
         'model'          => $model,
-        'max_tokens'     => 16384,
         'stream'         => true,
         'stream_options' => ['include_usage' => true],
         'messages'       => $apiMessages,
-    ];
+    ] + $tokenLimit;
     $headers = [
         'Content-Type: application/json',
         'Authorization: Bearer ' . $key,

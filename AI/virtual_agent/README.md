@@ -13,14 +13,15 @@
 | Claude | Opus 5.5 | ✅ 已啟用 |
 | Claude | Fable 5.1（最強） | ✅ 已啟用 |
 | Claude | Sonnet 5.5（較快） | ✅ 已啟用 |
-| Claude | Haiku 4.5（最快） | ✅ 已啟用 |
-| OpenAI | GPT-4.1（最新） | ✅ 已啟用 |
-| OpenAI | GPT-4o | ✅ 已啟用 |
+| Claude | Haiku 5.5（最快） | ✅ 已啟用 |
+| OpenAI | GPT-5.5（最新） | ✅ 已啟用 |
+| OpenAI | GPT-5.4 | ✅ 已啟用 |
+| OpenAI | GPT-5.4 Mini（較快） | ✅ 已啟用 |
 | xAI | Grok 4.7（最新） | ✅ 已啟用 |
-| xAI | Grok 3 | ✅ 已啟用 |
-| Gemini | Gemini 3.1 Pro | ✅ 已啟用 |
-| Gemini | Gemini 3.5 Flash（較快） | ✅ 已啟用 |
-| Gemini | Gemini 3.5 Flash Lite（最快） | ✅ 已啟用 |
+| xAI | Grok 4.5 | ✅ 已啟用 |
+| Gemini | Gemini 4 Argon（最新） | ✅ 已啟用 |
+| Gemini | Gemini 3.8 Flash（較快） | ✅ 已啟用 |
+| Gemini | Gemini 3.6 Flash（快） | ✅ 已啟用 |
 - **動態主題色**：切換模型時自動套用該品牌配色
 - **對話歷史**：左側 sidebar 保存所有對話，支援新增 / 切換 / 刪除
 - **管理員模式**：開啟後 Claude 可透過工具操作 server 檔案
