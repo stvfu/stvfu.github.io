@@ -13,7 +13,9 @@ const MODELS = [
     'gpt-4o'            => ['label' => 'GPT-4o',                     'version' => '4o',                   'adaptive' => false, 'fallbacks' => false, 'provider' => 'openai'],
     'grok-4.7'          => ['label' => 'Grok 4.7（最新）',           'version' => '4.7（最新）',          'adaptive' => false, 'fallbacks' => false, 'provider' => 'grok'],
     'grok-3'            => ['label' => 'Grok 3',                     'version' => '3',                    'adaptive' => false, 'fallbacks' => false, 'provider' => 'grok'],
-    'gemini-2.5-pro'    => ['label' => 'Gemini 2.5 Pro（尚未啟用）', 'version' => '2.5 Pro（尚未啟用）', 'adaptive' => false, 'fallbacks' => false, 'provider' => 'gemini'],
+    'gemini-3.1-pro-preview' => ['label' => 'Gemini 3.1 Pro',              'version' => '3.1 Pro',              'adaptive' => false, 'fallbacks' => false, 'provider' => 'gemini'],
+    'gemini-3.5-flash'      => ['label' => 'Gemini 3.5 Flash（較快）',    'version' => '3.5 Flash（較快）',    'adaptive' => false, 'fallbacks' => false, 'provider' => 'gemini'],
+    'gemini-3.5-flash-lite' => ['label' => 'Gemini 3.5 Flash Lite（最快）', 'version' => '3.5 Flash Lite（最快）', 'adaptive' => false, 'fallbacks' => false, 'provider' => 'gemini'],
 ];
 const PROVIDERS = ['claude' => 'Claude', 'openai' => 'GPT', 'grok' => 'Grok', 'gemini' => 'Gemini'];
 const DEFAULT_MODEL = 'claude-opus-5-5';
@@ -57,4 +59,9 @@ function openai_api_key(array $config): string
 function xai_api_key(array $config): string
 {
     return ($config['xai_api_key'] ?? '') !== '' ? $config['xai_api_key'] : (string) getenv('XAI_API_KEY');
+}
+
+function google_api_key(array $config): string
+{
+    return ($config['google_api_key'] ?? '') !== '' ? $config['google_api_key'] : (string) getenv('GOOGLE_API_KEY');
 }

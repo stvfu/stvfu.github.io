@@ -291,6 +291,7 @@ footer button { height: 44px; min-width: 72px; }
         'cliToken'   => ($config['claude_oauth_token'] ?? '') !== '',
         'openaiKey'  => openai_api_key($config) !== '',
         'xaiKey'     => xai_api_key($config) !== '',
+        'geminiKey'  => google_api_key($config) !== '',
     ]) ?>;
     const ALL_MODELS = <?= json_encode(array_map(fn($m) => [
         'version' => $m['version'], 'adaptive' => $m['adaptive'], 'provider' => $m['provider'],
@@ -584,7 +585,7 @@ footer button { height: 44px; min-width: 72px; }
 
         let msg = '';
         if (nonClaude) {
-            const keyMap = { openai: STATUS.openaiKey, grok: STATUS.xaiKey };
+            const keyMap = { openai: STATUS.openaiKey, grok: STATUS.xaiKey, gemini: STATUS.geminiKey };
             if (!(keyMap[provider] ?? false)) {
                 const nameMap = { openai: 'OpenAI', grok: 'xAI', gemini: 'Google' };
                 msg = (nameMap[provider] || provider) + ' API 金鑰尚未設定：請在伺服器上的 config.php 填入對應的 api_key。';

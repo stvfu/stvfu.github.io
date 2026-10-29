@@ -83,7 +83,7 @@ if (!isset(MODELS[$model])) {
     fail(400, '不支援的模型。');
 }
 $provider = MODELS[$model]['provider'] ?? 'claude';
-if (!in_array($provider, ['claude', 'openai', 'grok'], true)) {
+if (!in_array($provider, ['claude', 'openai', 'grok', 'gemini'], true)) {
     fail(501, MODELS[$model]['label'] . '：此模型尚未啟用，敬請期待！');
 }
 if ($provider !== 'claude') {
@@ -165,6 +165,109 @@ if ($mode === 'cli') {
         emit(['type' => 'error', 'message' => cli_error_message($cliError ?? substr($stderr, -500))]);
         exit;
     }
+} elseif ($provider === 'gemini') {
+    // ---- Google Gemini API ----
+    $key = google_api_key($config);
+    $base = rtrim($config['google_api_base'] ?? 'https://generativelanguage.googleapis.com', '/');
+    if ($key === '') {
+        fail(500, '尚未設定 Google API 金鑰：請在 config.php 填入 google_api_key。');
+    }
+
+    $contents = [];
+    foreach ($messages as $m) {
+        $contents[] = [
+            'role' => $m['role'] === 'assistant' ? 'model' : 'user',
+            'parts' => [['text' => $m['content']]],
+        ];
+    }
+
+    $body = [
+        'contents' => $contents,
+        'generationConfig' => ['maxOutputTokens' => 16384],
+    ];
+    if (trim($system) !== '') {
+        $body['systemInstruction'] = ['parts' => [['text' => $system]]];
+    }
+
+    $url = $base . '/v1beta/models/' . $model . ':streamGenerateContent?alt=sse&key=' . urlencode($key);
+    $headers = [
+        'Content-Type: application/json',
+        'Connection: close',
+    ];
+
+    $ctx = stream_context_create(['http' => [
+        'method'           => 'POST',
+        'header'           => implode("\r\n", $headers),
+        'content'          => json_encode($body, JSON_UNESCAPED_UNICODE),
+        'ignore_errors'    => true,
+        'timeout'          => 600,
+        'protocol_version' => 1.1,
+    ]]);
+    $fp = @fopen($url, 'r', false, $ctx);
+    if (!$fp) {
+        fail(502, '無法連線到 Google Gemini API，請稍後再試。');
+    }
+
+    $statusLine = stream_get_meta_data($fp)['wrapper_data'][0] ?? '';
+    $httpStatus = preg_match('~^HTTP/\S+\s+(\d{3})~', $statusLine, $mm) ? (int) $mm[1] : 0;
+    if ($httpStatus !== 200) {
+        $err = json_decode(stream_get_contents($fp), true);
+        fclose($fp);
+        $detail = $err['error']['message'] ?? $statusLine;
+        $hint = match (true) {
+            $httpStatus === 400 => 'Google API 請求格式錯誤',
+            $httpStatus === 403 => 'Google API 金鑰無權限或已停用',
+            $httpStatus === 429 => '已達用量或速率上限',
+            $httpStatus >= 500  => 'Google Gemini API 發生錯誤',
+            default             => 'Google Gemini API 拒絕了這個請求',
+        };
+        fail(502, "{$hint}（{$httpStatus}）：{$detail}");
+    }
+
+    begin_stream();
+    $geminiInputTokens = 0;
+    $geminiOutputTokens = 0;
+    while (($line = fgets($fp)) !== false) {
+        if (connection_aborted()) break;
+        $line = trim($line);
+        if (!str_starts_with($line, 'data:')) continue;
+        $data = trim(substr($line, 5));
+        if ($data === '' || $data === '[DONE]') continue;
+        $ev = json_decode($data, true);
+        if (!is_array($ev)) continue;
+
+        $candidate = $ev['candidates'][0] ?? null;
+        if ($candidate) {
+            $parts = $candidate['content']['parts'] ?? [];
+            foreach ($parts as $part) {
+                if (isset($part['text']) && $part['text'] !== '') {
+                    emit(['type' => 'text', 'text' => $part['text']]);
+                }
+            }
+            $finishReason = $candidate['finishReason'] ?? null;
+            if ($finishReason !== null) {
+                $st['stop_reason'] = match ($finishReason) {
+                    'STOP'          => 'end_turn',
+                    'MAX_TOKENS'    => 'max_tokens',
+                    'SAFETY'        => 'refusal',
+                    'RECITATION'    => 'refusal',
+                    default         => $finishReason,
+                };
+            }
+        }
+        if (isset($ev['usageMetadata'])) {
+            $geminiInputTokens = $ev['usageMetadata']['promptTokenCount'] ?? 0;
+            $geminiOutputTokens = $ev['usageMetadata']['candidatesTokenCount'] ?? 0;
+        }
+        if (isset($ev['modelVersion'])) {
+            $st['model'] = $ev['modelVersion'];
+        }
+    }
+    fclose($fp);
+    $st['finished'] = true;
+    $st['usage']['input_tokens'] = $geminiInputTokens;
+    $st['usage']['output_tokens'] = $geminiOutputTokens;
+    $st['stop_reason'] ??= 'end_turn';
 } elseif ($provider === 'openai' || $provider === 'grok') {
     // ---- OpenAI 相容 API（OpenAI / xAI）----
     if ($provider === 'openai') {
