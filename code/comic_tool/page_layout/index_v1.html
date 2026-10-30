@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>漫畫分鏡 Layout 設計器</title>
+  <style>
+    body { font-family: "微軟正黑體", Arial, sans-serif; }
+    .container { display: flex; }
+    #canvas {
+      border: 1px solid #888; width: 500px; height: 750px; background: #fff;
+      margin: 20px; display: block;
+    }
+    .right-panel { margin: 20px; min-width: 400px; }
+    .section-title { font-size: 1.2em; margin: 10px 0 5px 0; }
+    table { border-collapse: collapse; margin-bottom: 10px; }
+    th, td { border: 1px solid #333; padding: 4px 8px; }
+    input[type="text"], input[type="number"], textarea { width: 60px; }
+    textarea { width: 150px; height: 48px; vertical-align: middle; }
+    button { margin: 2px; }
+    .json-btns { margin-top: 30px; }
+    .json-btns button { font-size: 1.1em; width: 120px; height: 40px; margin-right: 10px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- 畫布 -->
+    <div>
+      <svg id="canvas" width="500" height="750"></svg>
+      <div style="text-align:center;">寬500px</div>
+      <div style="position:absolute;left:530px;top:400px;">高750px</div>
+    </div>
+    <!-- 右側操作區 -->
+    <div class="right-panel">
+      <!-- 台詞 -->
+      <div class="section-title">台詞編輯區</div>
+      <div>
+        X <input type="number" id="tx" value="450" oninput="drawCanvas()">
+        Y <input type="number" id="ty" value="40" oninput="drawCanvas()">
+        字體 <input type="number" id="tsize" value="20" oninput="drawCanvas()">
+        <textarea id="ttext" oninput="drawCanvas()"> </textarea>
+        <button onclick="addText()">新增</button>
+      </div>
+      <table id="textTable">
+        <tr><th>X</th><th>Y</th><th>大小</th><th>內容</th><th>編輯</th><th>刪除</th></tr>
+      </table>
+      <!-- 分割線 -->
+      <div class="section-title">分割線編輯區</div>
+      <div>
+        起點 <input type="number" id="sx" value="0" oninput="drawCanvas()"> , <input type="number" id="sy" value="250" oninput="drawCanvas()">
+        終點 <input type="number" id="ex" value="500" oninput="drawCanvas()"> , <input type="number" id="ey" value="250" oninput="drawCanvas()">
+        寬 <input type="number" id="swidth" value="6" oninput="drawCanvas()">
+        <button onclick="addLine()">新增</button>
+      </div>
+      <table id="lineTable">
+        <tr><th>起點</th><th>終點</th><th>寬</th><th>編輯</th><th>刪除</th></tr>
+      </table>
+      <!-- 檔案處理 -->
+      <div class="section-title">檔案處理區</div>
+      <div class="json-btns">
+        <button onclick="importJson()">匯入 json</button>
+        <button onclick="exportJson()">匯出 json</button>
+        <input type="file" id="jsonFile" style="display:none;" accept=".json">
+      </div>
+    </div>
+  </div>
+  <script>
+    let texts = [];
+    let lines = [];
+    let editTextIdx = null;
+    let editLineIdx = null;
+
+    // 直書多行 tspan
+    function createVerticalText(svg, x, y, size, color, text) {
+      const svgText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      svgText.setAttribute("x", x);
+      svgText.setAttribute("y", y);
+      svgText.setAttribute("font-size", size);
+      svgText.setAttribute("fill", color);
+      svgText.setAttribute("writing-mode", "vertical-rl");
+      svgText.setAttribute("style", "font-family: inherit;");
+      const linesArr = text.replace(/\\n/g, '\n').split('\n');
+      linesArr.forEach((line, idx) => {
+        const tspan = document.createElementNS("http://www.w3.org/2000/svg", "tspan");
+        tspan.setAttribute("x", x - idx * size); // 直書時用x偏移
+        tspan.setAttribute("y", y);
+        tspan.textContent = line;
+        svgText.appendChild(tspan);
+      });
+      svg.appendChild(svgText);
+    }
+
+    function drawCanvas() {
+      const canvas = document.getElementById('canvas');
+      canvas.innerHTML = '';
+      // 分割線
+      lines.forEach((line, i) => {
+        const svgLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        svgLine.setAttribute("x1", line.x1);
+        svgLine.setAttribute("y1", line.y1);
+        svgLine.setAttribute("x2", line.x2);
+        svgLine.setAttribute("y2", line.y2);
+        svgLine.setAttribute("stroke", i === editLineIdx ? "red" : "deepskyblue");
+        svgLine.setAttribute("stroke-width", line.width);
+        svgLine.setAttribute("stroke-linecap", "round");
+        canvas.appendChild(svgLine);
+      });
+      // 預覽正在編輯的分割線
+      if (editLineIdx !== null) {
+        const x1 = parseInt(document.getElementById('sx').value);
+        const y1 = parseInt(document.getElementById('sy').value);
+        const x2 = parseInt(document.getElementById('ex').value);
+        const y2 = parseInt(document.getElementById('ey').value);
+        const width = parseInt(document.getElementById('swidth').value);
+        const svgLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        svgLine.setAttribute("x1", x1);
+        svgLine.setAttribute("y1", y1);
+        svgLine.setAttribute("x2", x2);
+        svgLine.setAttribute("y2", y2);
+        svgLine.setAttribute("stroke", "red");
+        svgLine.setAttribute("stroke-width", width);
+        svgLine.setAttribute("stroke-dasharray", "8,4");
+        svgLine.setAttribute("stroke-linecap", "round");
+        canvas.appendChild(svgLine);
+      }
+      // 台詞
+      texts.forEach((text, i) => {
+        createVerticalText(canvas, text.x, text.y, text.size, i === editTextIdx ? "red" : "#222", text.text);
+      });
+      // 預覽正在編輯的台詞
+      if (editTextIdx !== null) {
+        const x = parseInt(document.getElementById('tx').value);
+        const y = parseInt(document.getElementById('ty').value);
+        const size = parseInt(document.getElementById('tsize').value);
+        const text = document.getElementById('ttext').value;
+        createVerticalText(canvas, x, y, size, "red", text);
+      }
+      // 如果不是編輯狀態，也預覽輸入欄位的內容
+      if (editTextIdx === null && document.getElementById('ttext').value.trim() !== "") {
+        const x = parseInt(document.getElementById('tx').value);
+        const y = parseInt(document.getElementById('ty').value);
+        const size = parseInt(document.getElementById('tsize').value);
+        const text = document.getElementById('ttext').value;
+        createVerticalText(canvas, x, y, size, "#888", text);
+      }
+      if (editLineIdx === null && (document.getElementById('sx').value !== "" || document.getElementById('ex').value !== "")) {
+        const x1 = parseInt(document.getElementById('sx').value);
+        const y1 = parseInt(document.getElementById('sy').value);
+        const x2 = parseInt(document.getElementById('ex').value);
+        const y2 = parseInt(document.getElementById('ey').value);
+        const width = parseInt(document.getElementById('swidth').value);
+        const svgLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        svgLine.setAttribute("x1", x1);
+        svgLine.setAttribute("y1", y1);
+        svgLine.setAttribute("x2", x2);
+        svgLine.setAttribute("y2", y2);
+        svgLine.setAttribute("stroke", "#888");
+        svgLine.setAttribute("stroke-width", width);
+        svgLine.setAttribute("stroke-dasharray", "8,4");
+        svgLine.setAttribute("stroke-linecap", "round");
+        canvas.appendChild(svgLine);
+      }
+    }
+
+    // 台詞表格
+    function updateTextTable() {
+      const table = document.getElementById('textTable');
+      table.innerHTML = '<tr><th>X</th><th>Y</th><th>大小</th><th>內容</th><th>編輯</th><th>刪除</th></tr>';
+      texts.forEach((t, i) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${t.x}</td><td>${t.y}</td><td>${t.size}</td><td>${t.text.replace(/\n/g,"<br>")}</td>
+          <td><button onclick="editText(${i})">編輯</button></td>
+          <td><button onclick="deleteText(${i})">刪除</button></td>`;
+        table.appendChild(tr);
+      });
+    }
+    // 分割線表格
+    function updateLineTable() {
+      const table = document.getElementById('lineTable');
+      table.innerHTML = '<tr><th>起點</th><th>終點</th><th>寬</th><th>編輯</th><th>刪除</th></tr>';
+      lines.forEach((l, i) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>(${l.x1},${l.y1})</td><td>(${l.x2},${l.y2})</td><td>${l.width}</td>
+          <td><button onclick="editLine(${i})">編輯</button></td>
+          <td><button onclick="deleteLine(${i})">刪除</button></td>`;
+        table.appendChild(tr);
+      });
+    }
+
+    // 新增/編輯台詞
+    function addText() {
+      const x = parseInt(document.getElementById('tx').value);
+      const y = parseInt(document.getElementById('ty').value);
+      const size = parseInt(document.getElementById('tsize').value);
+      const text = document.getElementById('ttext').value;
+      if (editTextIdx !== null) {
+        texts[editTextIdx] = {x, y, size, text};
+        editTextIdx = null;
+      } else {
+        texts.push({x, y, size, text});
+      }
+      document.getElementById('ttext').value = '';
+      updateTextTable();
+      drawCanvas();
+    }
+    function editText(idx) {
+      const t = texts[idx];
+      document.getElementById('tx').value = t.x;
+      document.getElementById('ty').value = t.y;
+      document.getElementById('tsize').value = t.size;
+      document.getElementById('ttext').value = t.text;
+      editTextIdx = idx;
+      drawCanvas();
+    }
+    function deleteText(idx) {
+      texts.splice(idx, 1);
+      editTextIdx = null;
+      updateTextTable();
+      drawCanvas();
+    }
+
+    // 新增/編輯分割線
+    function addLine() {
+      const x1 = parseInt(document.getElementById('sx').value);
+      const y1 = parseInt(document.getElementById('sy').value);
+      const x2 = parseInt(document.getElementById('ex').value);
+      const y2 = parseInt(document.getElementById('ey').value);
+      const width = parseInt(document.getElementById('swidth').value);
+      if (editLineIdx !== null) {
+        lines[editLineIdx] = {x1, y1, x2, y2, width};
+        editLineIdx = null;
+      } else {
+        lines.push({x1, y1, x2, y2, width});
+      }
+      updateLineTable();
+      drawCanvas();
+    }
+    function editLine(idx) {
+      const l = lines[idx];
+      document.getElementById('sx').value = l.x1;
+      document.getElementById('sy').value = l.y1;
+      document.getElementById('ex').value = l.x2;
+      document.getElementById('ey').value = l.y2;
+      document.getElementById('swidth').value = l.width;
+      editLineIdx = idx;
+      drawCanvas();
+    }
+    function deleteLine(idx) {
+      lines.splice(idx, 1);
+      editLineIdx = null;
+      updateLineTable();
+      drawCanvas();
+    }
+
+    // 匯出/匯入 JSON
+    function exportJson() {
+      const data = {texts, lines};
+      const blob = new Blob([JSON.stringify(data, null, 2)], {type: "application/json"});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = "comic_layout.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+    function importJson() {
+      document.getElementById('jsonFile').click();
+    }
+    document.getElementById('jsonFile').addEventListener('change', function(e){
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        try {
+          const data = JSON.parse(evt.target.result);
+          texts = data.texts || [];
+          lines = data.lines || [];
+          editTextIdx = null;
+          editLineIdx = null;
+          updateTextTable();
+          updateLineTable();
+          drawCanvas();
+        } catch (e) {
+          alert("JSON格式錯誤");
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    // 初始化
+    updateTextTable();
+    updateLineTable();
+    drawCanvas();
+  </script>
+</body>
+</html>
