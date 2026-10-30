@@ -122,6 +122,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
 .edit-actions button.primary{background:var(--accent);color:#000;border-color:var(--accent);font-weight:600}
 .edit-actions button.primary:hover{opacity:.85}
 
+/* Auto-chat toggle */
+.auto-toggle{display:flex;align-items:center;gap:5px;cursor:pointer;white-space:nowrap;font-size:.82rem;color:var(--muted);user-select:none;flex-shrink:0}
+.auto-toggle input{accent-color:var(--accent);margin:0;width:15px;height:15px}
+.auto-toggle.on{color:var(--accent)}
+#send.stop-btn{background:#F87171}
+
 /* Status & Input */
 .status-bar{text-align:center;font-size:.8rem;color:var(--muted);padding:4px 16px;min-height:24px;flex-shrink:0}
 .typing-dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:6px;vertical-align:middle;animation:pulse 1.2s infinite}
@@ -247,6 +253,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
     <div class="status-bar" id="status"></div>
 
     <div class="input-area">
+        <label class="auto-toggle" id="autoLabel" title="開啟後 AI 會自動接力聊天">
+            <input type="checkbox" id="autoChat">
+            <span>掛機</span>
+        </label>
         <textarea id="input" placeholder="跟大家說點什麼..." rows="1"></textarea>
         <button id="send">送出</button>
     </div>
@@ -318,6 +328,10 @@ let userIdentity = loadUserIdentity();
 let messages   = [];
 let mode       = 'chat';
 let streaming  = false;
+let autoChat   = false;
+let abortCtrl  = null;
+let autoTimer  = null;
+const AUTO_DELAY = 3000;
 let currentConvId = null;
 let nextId     = characters.reduce((m,c) => Math.max(m, parseInt(c.id.slice(1))||0), 0) + 1;
 
@@ -512,28 +526,42 @@ document.querySelectorAll('.mode-btn').forEach(btn => {
 });
 
 function clearChat() {
-    if (streaming) return;
+    if (streaming) stopAll();
+    if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
+    autoChat = false;
+    document.getElementById('autoChat').checked = false;
+    document.getElementById('autoLabel').classList.remove('on');
     messages = [];
     currentConvId = null;
+    $status.textContent = '';
     $chat.innerHTML = '<div class="welcome"><div class="welcome-icon">🏮</div>'
         + '<div class="welcome-text">歡迎來到 AI 居酒屋！<br>說點什麼開始聊天吧。</div></div>';
 }
 
 // ---- Send ----
-async function send() {
-    const text = $input.value.trim();
-    if (!text || streaming) return;
-    $input.value = '';
-    $input.style.height = 'auto';
+async function send(auto) {
+    const isAuto = auto === true;
+    let userText = '';
 
-    const w = $chat.querySelector('.welcome');
-    if (w) w.remove();
+    if (!isAuto) {
+        userText = $input.value.trim();
+        if (!userText || streaming) return;
+        $input.value = '';
+        $input.style.height = 'auto';
 
-    messages.push({ character: 'user', content: text });
-    addMsg('user', userIdentity.name, text, 'var(--accent2)', messages.length - 1);
+        const w = $chat.querySelector('.welcome');
+        if (w) w.remove();
+
+        messages.push({ character: 'user', content: userText });
+        addMsg('user', userIdentity.name, userText, 'var(--accent2)', messages.length - 1);
+    } else {
+        if (streaming || messages.length === 0) return;
+    }
 
     streaming = true;
-    $send.disabled = true;
+    $send.textContent = '停止';
+    $send.classList.add('stop-btn');
+    $send.disabled = false;
 
     const charPayload = characters.map(c => ({
         id: c.id, name: c.name, gender: c.gender || '',
@@ -541,33 +569,37 @@ async function send() {
         background: c.background || '', personality: c.personality || '',
     }));
 
-    if (!currentConvId) {
-        try {
-            const r = await dbPost({ action: 'create', mode, characters: charPayload });
-            currentConvId = r.id;
-            loadConvList();
-        } catch {}
+    if (!isAuto) {
+        if (!currentConvId) {
+            try {
+                const r = await dbPost({ action: 'create', mode, characters: charPayload });
+                currentConvId = r.id;
+                loadConvList();
+            } catch {}
+        }
+        dbPost({ action: 'append', id: currentConvId, character: 'user', content: userText }).catch(() => {});
     }
-    dbPost({ action: 'append', id: currentConvId, character: 'user', content: text }).catch(() => {});
 
-    fetch('api.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
-        body: JSON.stringify({ mode, messages, characters: charPayload, user_name: userIdentity.name, user_background: userIdentity.background, scenario: userIdentity.scenario }),
-    }).then(async res => {
+    abortCtrl = new AbortController();
+    let curEl = null, curChar = null, curText = '';
+
+    try {
+        const res = await fetch('api.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+            signal: abortCtrl.signal,
+            body: JSON.stringify({ mode, messages, characters: charPayload, user_name: userIdentity.name, user_background: userIdentity.background, scenario: userIdentity.scenario, auto_continue: isAuto }),
+        });
+
         if (!res.ok) {
             const e = await res.json().catch(() => ({}));
             addSystem(e.error || '發生錯誤');
-            done();
             return;
         }
 
         const reader = res.body.getReader();
-        const dec    = new TextDecoder();
-        let buf      = '';
-        let curEl    = null;
-        let curChar  = null;
-        let curText  = '';
+        const dec = new TextDecoder();
+        let buf = '';
 
         while (true) {
             const { done: eof, value } = await reader.read();
@@ -611,24 +643,58 @@ async function send() {
                             t.textContent = `（${ev.message}）`;
                             t.style.color = '#F87171';
                         }
-                        break;
-                    case 'round_end':
-                        done();
+                        curEl = null;
+                        curChar = null;
+                        curText = '';
+                        $status.textContent = '';
                         break;
                 }
             }
         }
+    } catch (err) {
+        if (err.name === 'AbortError') {
+            if (curText && curChar) {
+                messages.push({ character: curChar, content: curText });
+                if (curEl) curEl.dataset.idx = messages.length - 1;
+                if (currentConvId) dbPost({ action:'append', id:currentConvId, character:curChar, content:curText }).catch(()=>{});
+            } else if (curEl) {
+                curEl.remove();
+            }
+        } else {
+            addSystem('連線失敗：' + err.message);
+        }
+    } finally {
         done();
-    }).catch(err => {
-        addSystem('連線失敗：' + err.message);
-        done();
-    });
+    }
+}
+
+function stopAll() {
+    autoChat = false;
+    document.getElementById('autoChat').checked = false;
+    document.getElementById('autoLabel').classList.remove('on');
+    if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
+    if (abortCtrl) { abortCtrl.abort(); abortCtrl = null; }
+    $status.textContent = '';
 }
 
 function done() {
+    if (!streaming) return;
     streaming = false;
+    abortCtrl = null;
+    $send.textContent = '送出';
+    $send.classList.remove('stop-btn');
     $send.disabled = false;
-    $status.textContent = '';
+
+    if (autoChat && messages.length > 0) {
+        $status.textContent = '掛機中，3 秒後繼續...';
+        autoTimer = setTimeout(() => {
+            autoTimer = null;
+            $status.textContent = '';
+            if (autoChat && !streaming) send(true);
+        }, AUTO_DELAY);
+    } else {
+        $status.textContent = '';
+    }
     $input.focus();
 }
 
@@ -1017,13 +1083,28 @@ document.addEventListener('click', e => { if (!$ctx.contains(e.target)) hideCtxM
 document.addEventListener('touchstart', e => { if (!$ctx.hidden && !$ctx.contains(e.target)) hideCtxMenu(); }, { passive: true });
 
 // ---- Events ----
-$send.addEventListener('click', send);
+$send.addEventListener('click', () => {
+    if (streaming) stopAll();
+    else send();
+});
 $input.addEventListener('keydown', e => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
 });
 $input.addEventListener('input', () => {
     $input.style.height = 'auto';
     $input.style.height = Math.min($input.scrollHeight, 120) + 'px';
+});
+
+document.getElementById('autoChat').addEventListener('change', function() {
+    autoChat = this.checked;
+    document.getElementById('autoLabel').classList.toggle('on', autoChat);
+    if (autoChat && !streaming && messages.length > 0) {
+        send(true);
+    }
+    if (!autoChat) {
+        if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
+        if (!streaming) $status.textContent = '';
+    }
 });
 
 // ---- Init ----

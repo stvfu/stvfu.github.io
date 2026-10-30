@@ -137,7 +137,11 @@ foreach ($in['messages'] ?? [] as $m) {
         $history[] = ['character' => $m['character'] ?? '', 'content' => $m['content']];
     }
 }
-if (empty($history) || end($history)['character'] !== 'user') {
+$autoContinue = !empty($in['auto_continue']);
+if (empty($history)) {
+    fail(400, '請輸入訊息。');
+}
+if (!$autoContinue && end($history)['character'] !== 'user') {
     fail(400, '請輸入訊息。');
 }
 if (count($history) > 50) {
@@ -146,7 +150,7 @@ if (count($history) > 50) {
 
 // ---- Build prompts ----
 
-function build_system(array $char, array $allChars, string $mode, string $userName, string $userBackground, string $scenario): string
+function build_system(array $char, array $allChars, string $mode, string $userName, string $userBackground, string $scenario, bool $autoContinue = false): string
 {
     $others = [];
     foreach ($allChars as $c) {
@@ -178,8 +182,13 @@ function build_system(array $char, array $allChars, string $mode, string $userNa
     }
     $userDesc .= '。';
 
+    $autoHint = $autoContinue
+        ? "目前是自動對話模式，{$userName}正在旁邊聽，不需要等他發言。自然地延續話題、回應其他角色，或發起新話題。\n\n"
+        : '';
+
     return "{$identity}{$personality}\n\n"
          . "{$sceneLine}你正在「AI 居酒屋」群聊中。其他角色：{$otherList}。{$userDesc}\n\n"
+         . $autoHint
          . MODE_PROMPTS[$mode] . "\n\n"
          . "規則：回覆簡短（1-4 句），像群聊打字。可以回應或吐槽其他角色。保持個性。不用 Markdown。不要自稱「作為 AI」或「作為語言模型」。";
 }
@@ -414,7 +423,7 @@ emit(['type' => 'round_start', 'order' => array_map(fn($c) => $c['id'], $charOrd
 
 $round = [];
 foreach ($charOrder as $char) {
-    $sys = build_system($char, $chars, $mode, $userName, $userBackground, $scenario);
+    $sys = build_system($char, $chars, $mode, $userName, $userBackground, $scenario, $autoContinue);
     $ctx = array_merge($history, $round);
     $msgs = build_msgs($ctx, $char['id'], $charNames, $userName);
 
