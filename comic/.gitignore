@@ -1,0 +1,27 @@
+# Firebase keys
+mobile/server/key/
+google-services.json
+
+# Server config (use config.php.example as template)
+mobile/server/config.php
+
+# Database
+*.db
+*.db-journal
+
+# Android build artifacts
+mobile/android/*/app/build/
+mobile/android/*/.gradle/
+mobile/android/*/local.properties
+
+# APK
+mobile/download/*.apk
+
+# Comic content (images managed separately)
+2026/
+works/*/images/
+works/*/chapters/
+works/*/cover.*
+
+# Data (manga metadata, managed by admin panel)
+data/manga.json
