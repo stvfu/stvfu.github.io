@@ -266,6 +266,32 @@ if ($api !== '') {
             json_out(['error' => '檔案不存在'], 404);
             break;
 
+        case 'delete_pages':
+            $ch_id = $_GET['ch'] ?? '';
+            $ch = get_chapter($data[$work_id], $ch_id);
+            if (!$ch) json_out(['error' => '章節不存在'], 404);
+            $input = json_decode(file_get_contents('php://input'), true);
+            $files = $input['files'] ?? [];
+            if (!is_array($files) || empty($files)) json_out(['error' => '未選擇檔案'], 400);
+            $abs_dir = BASE_PATH . '/' . $ch['dir'];
+            $deleted = 0;
+            foreach ($files as $f) {
+                $f = basename($f);
+                $path = $abs_dir . '/' . $f;
+                if ($f && file_exists($path)) {
+                    unlink($path);
+                    $thumb = $abs_dir . '/.thumbs/' . $f;
+                    if (file_exists($thumb)) unlink($thumb);
+                    $deleted++;
+                }
+            }
+            $order = load_page_order($ch['order'], $ch['dir']);
+            $del_set = array_map('basename', $files);
+            $order = array_values(array_filter($order, fn($f) => !in_array($f, $del_set)));
+            save_page_order($ch['order'], $order);
+            json_out(['ok' => true, 'deleted' => $deleted]);
+            break;
+
         case 'save_info':
             $input = json_decode(file_get_contents('php://input'), true);
             if (isset($input['title'])) $data[$work_id]['title'] = trim($input['title']);
@@ -426,8 +452,19 @@ body{background:#1a1a2e;color:#eee;font-family:-apple-system,BlinkMacSystemFont,
 .card .actions{position:absolute;top:4px;right:4px;display:none;flex-direction:column;gap:2px}
 .card:hover .actions{display:flex}
 .card .actions button{width:26px;height:26px;border:none;border-radius:50%;cursor:pointer;font-size:.7em;line-height:26px;padding:0;color:#fff}
+.card.selected{box-shadow:0 0 0 3px #4ea8de;background:#0f2a4a}
+.card .check{position:absolute;top:4px;left:4px;width:22px;height:22px;border:2px solid #555;border-radius:4px;background:rgba(0,0,0,.4);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;color:transparent;transition:all .15s}
+.card.selected .check{border-color:#4ea8de;background:#4ea8de;color:#fff}
 .card .btn-del{background:rgba(233,69,96,.85)}
 .card .btn-cover{background:rgba(45,106,79,.85);font-size:.6em}
+
+.batch-bar{display:none;align-items:center;gap:10px;margin-bottom:12px;padding:10px 14px;background:#0f2a4a;border:1px solid #4ea8de;border-radius:8px;flex-wrap:wrap}
+.batch-bar.show{display:flex}
+.batch-bar .sel-info{font-size:.88em;color:#4ea8de;margin-right:auto}
+.batch-bar button{padding:6px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.84em;color:#fff}
+.batch-bar .btn-sel-all{background:#0f3460}
+.batch-bar .btn-sel-none{background:#333}
+.batch-bar .btn-batch-del{background:#e94560}
 
 .toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#2d6a4f;color:#fff;padding:10px 28px;border-radius:8px;font-size:.92em;display:none;z-index:999}
 .toast.error{background:#e94560}
@@ -497,6 +534,13 @@ body{background:#1a1a2e;color:#eee;font-family:-apple-system,BlinkMacSystemFont,
         <div class="label" id="progressLabel">0%</div>
     </div>
 
+    <div class="batch-bar" id="batchBar">
+        <span class="sel-info" id="selInfo">已選 0 頁</span>
+        <button class="btn-sel-all" onclick="selectAll()">全選</button>
+        <button class="btn-sel-none" onclick="selectNone()">取消全選</button>
+        <button class="btn-batch-del" onclick="batchDelete()">刪除選取</button>
+    </div>
+
     <p class="page-count" id="pageCount"></p>
     <div class="grid" id="grid"></div>
     <?php else: ?>
@@ -534,6 +578,7 @@ const pageCount = document.getElementById('pageCount');
 const toast = document.getElementById('toast');
 let order = [];
 let dragSrcIndex = null;
+let selected = new Set();
 
 function showToast(msg, isError) {
     toast.textContent = msg;
@@ -632,16 +677,67 @@ function thumbUrl(file) {
     return './?api=thumb&path=' + encodeURIComponent(activeChDir + '/' + file);
 }
 
+function updateBatchBar() {
+    const bar = document.getElementById('batchBar');
+    const info = document.getElementById('selInfo');
+    if (selected.size > 0) {
+        bar.classList.add('show');
+        info.textContent = '已選 ' + selected.size + ' 頁';
+    } else {
+        bar.classList.remove('show');
+    }
+}
+
+function toggleSelect(file, card) {
+    if (selected.has(file)) { selected.delete(file); card.classList.remove('selected'); }
+    else { selected.add(file); card.classList.add('selected'); }
+    updateBatchBar();
+}
+
+function selectAll() {
+    selected = new Set(order);
+    document.querySelectorAll('.card').forEach(c => c.classList.add('selected'));
+    updateBatchBar();
+}
+
+function selectNone() {
+    selected.clear();
+    document.querySelectorAll('.card').forEach(c => c.classList.remove('selected'));
+    updateBatchBar();
+}
+
+async function batchDelete() {
+    if (selected.size === 0) return;
+    if (!confirm('確定刪除選取的 ' + selected.size + ' 頁？')) return;
+    const files = [...selected];
+    const res = await fetch(apiBase + '&api=delete_pages&ch=' + encodeURIComponent(activeChId), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ files })
+    });
+    const d = await res.json();
+    if (d.ok) {
+        showToast('已刪除 ' + d.deleted + ' 頁');
+        selected.clear();
+        updateBatchBar();
+        loadList();
+    } else {
+        showToast(d.error || '刪除失敗', true);
+    }
+}
+
 function renderGrid() {
     pageCount.textContent = '共 ' + order.length + ' 頁';
     grid.innerHTML = '';
     order.forEach((file, i) => {
         const card = document.createElement('div');
-        card.className = 'card';
+        card.className = 'card' + (selected.has(file) ? ' selected' : '');
         card.draggable = true;
         card.dataset.index = i;
+        card.dataset.file = file;
         const imgPath = activeChDir + '/' + file;
         card.innerHTML =
+            '<div class="check">✓</div>' +
             '<div class="actions">' +
                 '<button class="btn-del" title="刪除">&times;</button>' +
                 '<button class="btn-cover" title="設為封面">★</button>' +
@@ -650,6 +746,10 @@ function renderGrid() {
             '<div class="page-num">' + (i+1) + '</div>' +
             '<div class="fname" title="' + file + '">' + file + '</div>';
 
+        card.querySelector('.check').addEventListener('click', e => {
+            e.stopPropagation();
+            toggleSelect(file, card);
+        });
         card.querySelector('.btn-del').addEventListener('click', e => {
             e.stopPropagation();
             if (!confirm('刪除第 ' + (i+1) + ' 頁？\n' + file)) return;
@@ -660,7 +760,15 @@ function renderGrid() {
             setPageAsCover(imgPath);
         });
 
-        card.addEventListener('dragstart', e => { dragSrcIndex = i; card.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
+        card.addEventListener('click', e => {
+            if (e.target.closest('.actions') || e.target.closest('.check')) return;
+            if (selected.size > 0) { toggleSelect(file, card); return; }
+        });
+
+        card.addEventListener('dragstart', e => {
+            if (selected.size > 0) { e.preventDefault(); return; }
+            dragSrcIndex = i; card.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move';
+        });
         card.addEventListener('dragend', () => { card.classList.remove('dragging'); document.querySelectorAll('.card').forEach(c => c.classList.remove('drag-over')); });
         card.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; card.classList.add('drag-over'); });
         card.addEventListener('dragleave', () => card.classList.remove('drag-over'));
@@ -678,6 +786,7 @@ function renderGrid() {
 
         grid.appendChild(card);
     });
+    updateBatchBar();
 }
 
 async function saveOrder() {
