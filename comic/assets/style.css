@@ -892,6 +892,13 @@ a:hover { color: var(--accent-hover); }
     border-top: 1px solid var(--border);
     margin-top: 40px;
 }
+.site-footer a {
+    color: var(--text-muted);
+    text-decoration: none;
+}
+.site-footer a:hover {
+    color: var(--accent);
+}
 
 /* ===== LOADING PLACEHOLDER ===== */
 .cover-placeholder {

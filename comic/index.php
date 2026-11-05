@@ -309,6 +309,6 @@ document.getElementById('unlockOverlay').addEventListener('click', function(e) {
 
 <?php endif; ?>
 
-<footer class="site-footer"><?= SITE_NAME ?></footer>
+<footer class="site-footer"><?= SITE_NAME ?> · <a href="<?= BASE_URL ?>/privacy.html">隱私權政策</a></footer>
 </body>
 </html>

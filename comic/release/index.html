@@ -62,7 +62,7 @@ footer { text-align: center; color: var(--muted); font-size: .8em; padding: 30px
 
 <div class="summary">
     <div class="stat stat-block">
-        <div class="num">5</div>
+        <div class="num">4</div>
         <div class="label">必須解決（Blocker）</div>
     </div>
     <div class="stat stat-warn">
@@ -74,7 +74,7 @@ footer { text-align: center; color: var(--muted); font-size: .8em; padding: 30px
         <div class="label">加分項目（Nice to have）</div>
     </div>
     <div class="stat stat-done">
-        <div class="num">6</div>
+        <div class="num">7</div>
         <div class="label">已完成（Done）</div>
     </div>
 </div>
@@ -104,10 +104,14 @@ footer { text-align: center; color: var(--muted); font-size: .8em; padding: 30px
     </div>
 
     <div class="item">
-        <div class="item-head">缺少隱私權政策 <span class="tag tag-must">必須</span></div>
+        <div class="item-head">缺少隱私權政策 <span class="tag tag-done">已完成</span></div>
         <div class="item-desc">App 使用了網路權限、推播通知、收集裝置 FCM Token 並傳送至自建伺服器。Google Play 要求必須提供隱私權政策頁面 URL。</div>
-        <div class="item-current">未建立任何隱私權政策頁面。</div>
-        <div class="item-solution">建立一個公開的隱私權政策網頁（例如 <code>stvfu.com/comic/privacy.html</code>），說明資料收集項目（FCM Token、IP）、用途、保留期間。</div>
+        <div class="item-done">
+            已建立隱私權政策頁面：<code><a href="/comic/privacy.html">stvfu.com/comic/privacy.html</a></code><br>
+            &bull; 涵蓋 FCM Token、IP 位址、Cookie、離線快取等所有資料收集項目<br>
+            &bull; 說明用途、保留期間、App 權限、第三方服務（Firebase）<br>
+            &bull; 明確聲明不收集 PII、不使用廣告追蹤、不分享資料給第三方
+        </div>
     </div>
 
     <div class="item">
@@ -299,7 +303,7 @@ footer { text-align: center; color: var(--muted); font-size: .8em; padding: 30px
 </div>
 
 <footer>
-    最後更新：2026-11-05（targetSdk 35 升級、棄用 API 修正、離線閱讀、版權已完成）&nbsp;|&nbsp; 猛少女之拳 — Google Play 上架準備追蹤
+    最後更新：2026-11-05（隱私權政策、targetSdk 35、棄用 API、離線閱讀、版權已完成）&nbsp;|&nbsp; 猛少女之拳 — Google Play 上架準備追蹤
 </footer>
 
 </body>
