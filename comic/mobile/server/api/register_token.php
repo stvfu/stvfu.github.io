@@ -7,8 +7,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
+require_once '/var/www/data/comic/api_keys.php';
 $apiKey = $_SERVER['HTTP_X_API_KEY'] ?? '';
-if ($apiKey !== 'cpunch_fcm_2026') {
+if ($apiKey !== FCM_REGISTER_API_KEY) {
     http_response_code(403);
     echo json_encode(['error' => 'Forbidden']);
     exit;
