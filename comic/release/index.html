@@ -62,11 +62,11 @@ footer { text-align: center; color: var(--muted); font-size: .8em; padding: 30px
 
 <div class="summary">
     <div class="stat stat-block">
-        <div class="num">6</div>
+        <div class="num">5</div>
         <div class="label">必須解決（Blocker）</div>
     </div>
     <div class="stat stat-warn">
-        <div class="num">6</div>
+        <div class="num">4</div>
         <div class="label">強烈建議（Warning）</div>
     </div>
     <div class="stat stat-nice">
@@ -74,7 +74,7 @@ footer { text-align: center; color: var(--muted); font-size: .8em; padding: 30px
         <div class="label">加分項目（Nice to have）</div>
     </div>
     <div class="stat stat-done">
-        <div class="num">3</div>
+        <div class="num">6</div>
         <div class="label">已完成（Done）</div>
     </div>
 </div>
@@ -92,10 +92,15 @@ footer { text-align: center; color: var(--muted); font-size: .8em; padding: 30px
     <h2><span class="badge badge-block">Blocker 多</span> Google Play 政策與上架要求</h2>
 
     <div class="item">
-        <div class="item-head">targetSdk 必須升級至 35 <span class="tag tag-must">必須</span></div>
+        <div class="item-head">targetSdk 必須升級至 35 <span class="tag tag-done">已完成</span></div>
         <div class="item-desc">Google Play 自 2024/08 起要求新上架 App 的 <code>targetSdk</code> 至少為 34，2025 年起則必須為 35。</div>
-        <div class="item-current">目前 <code>targetSdk = 34</code>，<code>compileSdk = 34</code>，不符合 2025 以後的新 App 上架門檻。</div>
-        <div class="item-solution">將 <code>build.gradle.kts</code> 中 <code>compileSdk</code> 與 <code>targetSdk</code> 升級至 35，並測試相容性。</div>
+        <div class="item-done">
+            已升級至 <code>compileSdk = 35</code>、<code>targetSdk = 35</code>，同步處理了 API 35 的 breaking changes：<br>
+            &bull; <code>onBackPressed()</code> → <code>OnBackPressedCallback</code>（predictive back 支援）<br>
+            &bull; <code>FLAG_FULLSCREEN</code> → <code>WindowInsetsController</code><br>
+            &bull; <code>NetworkInfo</code> → <code>NetworkCapabilities</code><br>
+            &bull; AGP 升級至 8.5.2、Gradle 升級至 8.7
+        </div>
     </div>
 
     <div class="item">
@@ -171,17 +176,15 @@ footer { text-align: center; color: var(--muted); font-size: .8em; padding: 30px
     </div>
 
     <div class="item">
-        <div class="item-head">使用已棄用的 onBackPressed <span class="tag tag-should">建議</span></div>
+        <div class="item-head">使用已棄用的 onBackPressed <span class="tag tag-done">已完成</span></div>
         <div class="item-desc"><code>onBackPressed()</code> 在 API 33+ 已被標記為 deprecated，應改用 <code>OnBackPressedCallback</code>。</div>
-        <div class="item-current"><code>MainActivity.java:172</code> 覆寫了已棄用的方法。</div>
-        <div class="item-solution">改用 <code>getOnBackPressedDispatcher().addCallback()</code> 搭配 <code>OnBackPressedCallback</code>。</div>
+        <div class="item-done">已改用 <code>getOnBackPressedDispatcher().addCallback()</code> 搭配 <code>OnBackPressedCallback</code>，支援 predictive back gesture。</div>
     </div>
 
     <div class="item">
-        <div class="item-head">使用已棄用的 FLAG_FULLSCREEN <span class="tag tag-should">建議</span></div>
+        <div class="item-head">使用已棄用的 FLAG_FULLSCREEN <span class="tag tag-done">已完成</span></div>
         <div class="item-desc"><code>WindowManager.LayoutParams.FLAG_FULLSCREEN</code> 在 API 30+ 已棄用。</div>
-        <div class="item-current"><code>MainActivity.java:105</code> 在閱讀器模式時使用。</div>
-        <div class="item-solution">改用 <code>WindowInsetsController</code> 的 <code>hide(WindowInsets.Type.statusBars())</code>。</div>
+        <div class="item-done">已改用 <code>WindowInsetsController.hide(WindowInsets.Type.statusBars())</code>，搭配 <code>BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE</code>。</div>
     </div>
 
     <div class="item">
@@ -296,7 +299,7 @@ footer { text-align: center; color: var(--muted); font-size: .8em; padding: 30px
 </div>
 
 <footer>
-    最後更新：2026-11-05（離線閱讀、版權、離線提示已完成）&nbsp;|&nbsp; 猛少女之拳 — Google Play 上架準備追蹤
+    最後更新：2026-11-05（targetSdk 35 升級、棄用 API 修正、離線閱讀、版權已完成）&nbsp;|&nbsp; 猛少女之拳 — Google Play 上架準備追蹤
 </footer>
 
 </body>

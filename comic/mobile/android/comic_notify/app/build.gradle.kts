@@ -5,14 +5,14 @@ plugins {
 
 android {
     namespace = "com.comicpunch.notify"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.comicpunch.notify"
         minSdk = 26
-        targetSdk = 34
-        versionCode = 3
-        versionName = "3.0"
+        targetSdk = 35
+        versionCode = 4
+        versionName = "3.1"
     }
 
     compileOptions {

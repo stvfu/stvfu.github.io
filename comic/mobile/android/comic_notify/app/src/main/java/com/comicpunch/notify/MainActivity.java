@@ -1,34 +1,36 @@
 package com.comicpunch.notify;
 
 import android.Manifest;
+import android.app.AlertDialog;
+import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.net.ConnectivityManager;
+import android.net.NetworkCapabilities;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
-import android.view.WindowManager;
+import android.view.WindowInsetsController;
 import android.webkit.JavascriptInterface;
 import android.webkit.MimeTypeMap;
+import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
 import android.widget.TextView;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
-import android.webkit.WebView;
-import android.webkit.WebViewClient;
-import android.webkit.WebSettings;
-import android.webkit.WebChromeClient;
 
 import com.google.firebase.messaging.FirebaseMessaging;
 
-import android.app.AlertDialog;
-import android.content.Context;
-import android.content.Intent;
-import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
+import org.json.JSONObject;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
@@ -39,8 +41,6 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-
-import org.json.JSONObject;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -91,6 +91,22 @@ public class MainActivity extends AppCompatActivity {
 
         tabNews.setOnClickListener(v -> switchTab(0));
         tabComic.setOnClickListener(v -> switchTab(1));
+
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if (currentTab == 1 && wvComic.canGoBack()) {
+                    wvComic.goBack();
+                } else if (currentTab == 0 && wvNews.canGoBack()) {
+                    wvNews.goBack();
+                } else if (currentTab == 1) {
+                    switchTab(0);
+                } else {
+                    setEnabled(false);
+                    getOnBackPressedDispatcher().onBackPressed();
+                }
+            }
+        });
 
         switchTab(1);
         checkForUpdate();
@@ -167,8 +183,10 @@ public class MainActivity extends AppCompatActivity {
     private boolean isNetworkAvailable() {
         ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
         if (cm == null) return false;
-        NetworkInfo info = cm.getActiveNetworkInfo();
-        return info != null && info.isConnected();
+        android.net.Network net = cm.getActiveNetwork();
+        if (net == null) return false;
+        NetworkCapabilities caps = cm.getNetworkCapabilities(net);
+        return caps != null && caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET);
     }
 
     private String parseUrlParam(String url, String key) {
@@ -232,12 +250,18 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void toggleBottomNav(String url) {
-        if (url != null && url.contains("reader.php")) {
-            bottomNav.setVisibility(View.GONE);
-            getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
-        } else {
-            bottomNav.setVisibility(View.VISIBLE);
-            getWindow().clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        boolean isReader = url != null && url.contains("reader.php");
+        bottomNav.setVisibility(isReader ? View.GONE : View.VISIBLE);
+
+        WindowInsetsController controller = getWindow().getInsetsController();
+        if (controller != null) {
+            if (isReader) {
+                controller.hide(android.view.WindowInsets.Type.statusBars());
+                controller.setSystemBarsBehavior(
+                        WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+            } else {
+                controller.show(android.view.WindowInsets.Type.statusBars());
+            }
         }
     }
 
@@ -361,16 +385,4 @@ public class MainActivity extends AppCompatActivity {
         builder.show();
     }
 
-    @Override
-    public void onBackPressed() {
-        if (currentTab == 1 && wvComic.canGoBack()) {
-            wvComic.goBack();
-        } else if (currentTab == 0 && wvNews.canGoBack()) {
-            wvNews.goBack();
-        } else if (currentTab == 1) {
-            switchTab(0);
-        } else {
-            super.onBackPressed();
-        }
-    }
 }

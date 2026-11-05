@@ -57,7 +57,7 @@ uasort($manga_list, fn($a, $b) => strcmp($b['updated'] ?? '', $a['updated'] ?? '
 <!-- ===== WEB MODE: show everything, no lock UI ===== -->
 <div class="app-banner" id="appBanner">
     <span class="app-banner-text">&#x1F4F1; 下載 App，獲得推播通知與離線閱讀功能</span>
-    <a href="<?= BASE_URL ?>/mobile/download/comic_punch_v3.0_debug.apk" class="app-banner-btn">下載 APK</a>
+    <a href="<?= BASE_URL ?>/mobile/download/comic_punch_v3.1_debug.apk" class="app-banner-btn">下載 APK</a>
     <button class="app-banner-close" onclick="closeAppBanner()" title="關閉">&times;</button>
 </div>
 <div class="search-bar">
