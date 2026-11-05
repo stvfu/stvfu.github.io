@@ -4,6 +4,11 @@ require_once __DIR__ . '/includes/helpers.php';
 $type_filter = $_GET['type'] ?? '';
 $is_app = ($type_filter === 'original');
 
+$app_ver_file = __DIR__ . '/data/app_version.json';
+$app_ver = file_exists($app_ver_file) ? (json_decode(file_get_contents($app_ver_file), true) ?: []) : [];
+$app_version_name = $app_ver['version_name'] ?? '';
+$app_download_url = $app_ver['download_url'] ?? '';
+
 $unlock_data = [];
 $unlock_file = __DIR__ . '/data/unlock.json';
 if (file_exists($unlock_file)) {
@@ -57,7 +62,7 @@ uasort($manga_list, fn($a, $b) => strcmp($b['updated'] ?? '', $a['updated'] ?? '
 <!-- ===== WEB MODE: show everything, no lock UI ===== -->
 <div class="app-banner" id="appBanner">
     <span class="app-banner-text">&#x1F4F1; 下載 App，獲得推播通知與離線閱讀功能</span>
-    <a href="<?= BASE_URL ?>/mobile/download/comic_punch_v3.1_debug.apk" class="app-banner-btn">下載 APK</a>
+    <a href="<?= htmlspecialchars($app_download_url) ?>" class="app-banner-btn">下載 APK v<?= htmlspecialchars($app_version_name) ?></a>
     <button class="app-banner-close" onclick="closeAppBanner()" title="關閉">&times;</button>
 </div>
 <div class="search-bar">

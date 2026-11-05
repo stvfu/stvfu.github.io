@@ -26,6 +26,9 @@ import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.google.firebase.messaging.FirebaseMessaging;
@@ -56,11 +59,21 @@ public class MainActivity extends AppCompatActivity {
     private boolean comicLoaded = false;
     private boolean newsLoaded = false;
     private int currentTab = 1; // 0=news, 1=comic
+    private int statusBarHeight = 0;
+    private int navBarHeight = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(android.R.id.content), (v, windowInsets) -> {
+            Insets insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
+            statusBarHeight = insets.top;
+            navBarHeight = insets.bottom;
+            v.setPadding(insets.left, insets.top, insets.right, insets.bottom);
+            return WindowInsetsCompat.CONSUMED;
+        });
 
         offlineManager = new OfflineManager(this);
 
@@ -76,6 +89,12 @@ public class MainActivity extends AppCompatActivity {
         tabComic = findViewById(R.id.tab_comic);
         tabNewsLabel = findViewById(R.id.tab_news_label);
         tabComicLabel = findViewById(R.id.tab_comic_label);
+
+        try {
+            String vn = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+            TextView versionLabel = findViewById(R.id.version_label);
+            versionLabel.setText("v" + vn);
+        } catch (Exception ignored) {}
 
         setupWebView(wvNews);
         setupWebView(wvComic);
@@ -253,14 +272,19 @@ public class MainActivity extends AppCompatActivity {
         boolean isReader = url != null && url.contains("reader.php");
         bottomNav.setVisibility(isReader ? View.GONE : View.VISIBLE);
 
+        View rootView = findViewById(android.R.id.content);
         WindowInsetsController controller = getWindow().getInsetsController();
         if (controller != null) {
             if (isReader) {
-                controller.hide(android.view.WindowInsets.Type.statusBars());
+                rootView.setPadding(0, 0, 0, 0);
+                controller.hide(android.view.WindowInsets.Type.statusBars()
+                        | android.view.WindowInsets.Type.navigationBars());
                 controller.setSystemBarsBehavior(
                         WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
             } else {
-                controller.show(android.view.WindowInsets.Type.statusBars());
+                rootView.setPadding(0, statusBarHeight, 0, navBarHeight);
+                controller.show(android.view.WindowInsets.Type.statusBars()
+                        | android.view.WindowInsets.Type.navigationBars());
             }
         }
     }
@@ -329,6 +353,15 @@ public class MainActivity extends AppCompatActivity {
         }).start();
     }
 
+    private int[] parseVersion(String v) {
+        String[] parts = v.split("\\.");
+        int[] result = new int[3];
+        for (int i = 0; i < Math.min(parts.length, 3); i++) {
+            try { result[i] = Integer.parseInt(parts[i]); } catch (Exception ignored) {}
+        }
+        return result;
+    }
+
     private void checkForUpdate() {
         new Thread(() -> {
             try {
@@ -345,17 +378,27 @@ public class MainActivity extends AppCompatActivity {
                 conn.disconnect();
 
                 JSONObject data = new JSONObject(sb.toString());
-                int remoteCode = data.optInt("version_code", 0);
-                int localCode = getPackageManager()
-                        .getPackageInfo(getPackageName(), 0).versionCode;
+                String remoteVersion = data.optString("version_name", "0.0.0");
+                String localVersion = getPackageManager()
+                        .getPackageInfo(getPackageName(), 0).versionName;
 
-                if (remoteCode > localCode) {
-                    String versionName = data.optString("version_name", "");
+                int[] rv = parseVersion(remoteVersion);
+                int[] lv = parseVersion(localVersion);
+
+                boolean isNewer = rv[0] > lv[0]
+                        || (rv[0] == lv[0] && rv[1] > lv[1])
+                        || (rv[0] == lv[0] && rv[1] == lv[1] && rv[2] > lv[2]);
+
+                if (isNewer) {
+                    boolean majorChange = rv[0] > lv[0];
+                    boolean serverRequired = data.optBoolean("required", false);
+                    boolean forceUpdate = majorChange || serverRequired;
+
                     String changelog = data.optString("changelog", "");
                     String downloadUrl = data.optString("download_url", "");
-                    boolean required = data.optBoolean("required", false);
 
-                    runOnUiThread(() -> showUpdateDialog(versionName, changelog, downloadUrl, required));
+                    runOnUiThread(() -> showUpdateDialog(
+                            remoteVersion, changelog, downloadUrl, forceUpdate, majorChange));
                 }
             } catch (Exception e) {
                 Log.w(TAG, "Update check failed", e);
@@ -363,23 +406,29 @@ public class MainActivity extends AppCompatActivity {
         }).start();
     }
 
-    private void showUpdateDialog(String version, String changelog, String downloadUrl, boolean required) {
+    private void showUpdateDialog(String version, String changelog, String downloadUrl,
+                                  boolean forceUpdate, boolean majorChange) {
         String message = "最新版本：v" + version;
+        if (majorChange) {
+            message += "\n\n⚠ 重大更新，必須更新才能繼續使用";
+        }
         if (!changelog.isEmpty()) message += "\n\n" + changelog;
 
         AlertDialog.Builder builder = new AlertDialog.Builder(this)
-                .setTitle("有新版本可更新")
+                .setTitle(forceUpdate ? "必須更新" : "有新版本可更新")
                 .setMessage(message)
                 .setPositiveButton("立即更新", (dialog, which) -> {
                     Intent intent = new Intent(Intent.ACTION_VIEW,
                             android.net.Uri.parse(downloadUrl));
                     startActivity(intent);
+                    if (forceUpdate) finish();
                 });
 
-        if (!required) {
+        if (!forceUpdate) {
             builder.setNegativeButton("稍後再說", null);
         } else {
             builder.setCancelable(false);
+            builder.setNegativeButton("關閉 App", (dialog, which) -> finish());
         }
 
         builder.show();
