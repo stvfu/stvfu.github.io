@@ -29,14 +29,15 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "ComicNotify";
     private static final String SERVER_URL = "https://stvfu.com/comic/mobile/server/api";
-    private static final String COMIC_URL = "https://stvfu.com/comic/";
+    private static final String COMIC_URL = "https://stvfu.com/comic/?type=original";
 
     private WebView wvNews, wvComic;
     private SwipeRefreshLayout swipeNews, swipeComic;
     private View tabNews, tabComic, bottomNav;
     private TextView tabNewsLabel, tabComicLabel;
     private boolean comicLoaded = false;
-    private int currentTab = 0; // 0=news, 1=comic
+    private boolean newsLoaded = false;
+    private int currentTab = 1; // 0=news, 1=comic
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,8 +60,6 @@ public class MainActivity extends AppCompatActivity {
         setupWebView(wvNews);
         setupWebView(wvComic);
 
-        wvNews.loadUrl(SERVER_URL + "/updates.php");
-
         swipeNews.setOnRefreshListener(() -> {
             wvNews.reload();
             swipeNews.setRefreshing(false);
@@ -72,6 +71,8 @@ public class MainActivity extends AppCompatActivity {
 
         tabNews.setOnClickListener(v -> switchTab(0));
         tabComic.setOnClickListener(v -> switchTab(1));
+
+        switchTab(1);
     }
 
     private void setupWebView(WebView wv) {
@@ -117,6 +118,10 @@ public class MainActivity extends AppCompatActivity {
         tabNewsLabel.setTextColor(tab == 0 ? 0xFFE94560 : 0xFF888888);
         tabComicLabel.setTextColor(tab == 1 ? 0xFFE94560 : 0xFF888888);
 
+        if (tab == 0 && !newsLoaded) {
+            wvNews.loadUrl(SERVER_URL + "/updates.php");
+            newsLoaded = true;
+        }
         if (tab == 1 && !comicLoaded) {
             wvComic.loadUrl(COMIC_URL);
             comicLoaded = true;

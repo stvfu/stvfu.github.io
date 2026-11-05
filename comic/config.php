@@ -1,5 +1,5 @@
 <?php
-define('SITE_NAME', '忽田各作品集');
+define('SITE_NAME', '忽田各漫畫作品集');
 define('SITE_DESC', '同人誌社團「猛少女之拳」');
 define('BASE_PATH', __DIR__);
 define('BASE_URL', '/comic');

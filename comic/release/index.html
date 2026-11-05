@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Google Play 上架檢查清單 — 猛少女之拳</title>
+<style>
+:root {
+    --bg: #1a1a2e;
+    --bg2: #16213e;
+    --bg3: #0f3460;
+    --red: #e94560;
+    --green: #2d6a4f;
+    --yellow: #f0a500;
+    --text: #eee;
+    --muted: #888;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: -apple-system, 'Noto Sans TC', sans-serif; padding: 20px; max-width: 960px; margin: 0 auto; line-height: 1.7; }
+h1 { font-size: 1.5em; margin-bottom: 4px; }
+.subtitle { color: var(--muted); font-size: .9em; margin-bottom: 30px; }
+.section { background: var(--bg2); border-radius: 12px; padding: 20px 24px; margin-bottom: 20px; }
+.section h2 { font-size: 1.1em; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid #333; display: flex; align-items: center; gap: 8px; }
+.badge { display: inline-block; font-size: .7em; padding: 2px 10px; border-radius: 20px; color: #fff; font-weight: bold; vertical-align: middle; }
+.badge-block { background: var(--red); }
+.badge-warn { background: var(--yellow); color: #222; }
+.badge-info { background: var(--bg3); }
+.item { padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,.06); }
+.item:last-child { border-bottom: none; }
+.item-head { font-weight: 600; font-size: .95em; margin-bottom: 4px; }
+.item-head .tag { font-size: .72em; padding: 1px 8px; border-radius: 4px; color: #fff; margin-left: 6px; vertical-align: middle; }
+.tag-must { background: var(--red); }
+.tag-should { background: var(--yellow); color: #222; }
+.tag-nice { background: var(--green); }
+.tag-done { background: #555; }
+.item-desc { font-size: .88em; color: #bbb; }
+.item-desc code { background: rgba(255,255,255,.08); padding: 1px 6px; border-radius: 3px; font-size: .9em; }
+.item-current { font-size: .82em; color: var(--red); margin-top: 4px; }
+.item-current::before { content: "現況："; font-weight: 600; }
+.item-solution { font-size: .82em; color: var(--green); margin-top: 2px; }
+.item-solution::before { content: "解法："; font-weight: 600; }
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 30px; }
+.stat { background: var(--bg2); border-radius: 10px; padding: 16px; text-align: center; }
+.stat .num { font-size: 2em; font-weight: bold; }
+.stat .label { font-size: .82em; color: var(--muted); margin-top: 4px; }
+.stat-block .num { color: var(--red); }
+.stat-warn .num { color: var(--yellow); }
+.stat-nice .num { color: var(--green); }
+.toc { margin-bottom: 30px; }
+.toc a { color: var(--red); text-decoration: none; font-size: .9em; margin-right: 16px; }
+.toc a:hover { text-decoration: underline; }
+footer { text-align: center; color: var(--muted); font-size: .8em; padding: 30px 0 10px; }
+</style>
+</head>
+<body>
+
+<h1>Google Play 上架檢查清單</h1>
+<p class="subtitle">猛少女之拳 App（com.comicpunch.notify）— 基於目前程式碼的全面分析</p>
+
+<div class="summary">
+    <div class="stat stat-block">
+        <div class="num">7</div>
+        <div class="label">必須解決（Blocker）</div>
+    </div>
+    <div class="stat stat-warn">
+        <div class="num">8</div>
+        <div class="label">強烈建議（Warning）</div>
+    </div>
+    <div class="stat stat-nice">
+        <div class="num">6</div>
+        <div class="label">加分項目（Nice to have）</div>
+    </div>
+</div>
+
+<div class="toc">
+    <a href="#gp">Google Play 政策</a>
+    <a href="#tech">技術問題</a>
+    <a href="#ux">使用者體驗</a>
+    <a href="#security">安全性</a>
+    <a href="#quality">品質與維運</a>
+</div>
+
+<!-- ===== Google Play 政策 ===== -->
+<div class="section" id="gp">
+    <h2><span class="badge badge-block">Blocker 多</span> Google Play 政策與上架要求</h2>
+
+    <div class="item">
+        <div class="item-head">targetSdk 必須升級至 35 <span class="tag tag-must">必須</span></div>
+        <div class="item-desc">Google Play 自 2024/08 起要求新上架 App 的 <code>targetSdk</code> 至少為 34，2025 年起則必須為 35。</div>
+        <div class="item-current">目前 <code>targetSdk = 34</code>，<code>compileSdk = 34</code>，不符合 2025 以後的新 App 上架門檻。</div>
+        <div class="item-solution">將 <code>build.gradle.kts</code> 中 <code>compileSdk</code> 與 <code>targetSdk</code> 升級至 35，並測試相容性。</div>
+    </div>
+
+    <div class="item">
+        <div class="item-head">缺少隱私權政策 <span class="tag tag-must">必須</span></div>
+        <div class="item-desc">App 使用了網路權限、推播通知、收集裝置 FCM Token 並傳送至自建伺服器。Google Play 要求必須提供隱私權政策頁面 URL。</div>
+        <div class="item-current">未建立任何隱私權政策頁面。</div>
+        <div class="item-solution">建立一個公開的隱私權政策網頁（例如 <code>stvfu.com/comic/privacy.html</code>），說明資料收集項目（FCM Token、IP）、用途、保留期間。</div>
+    </div>
+
+    <div class="item">
+        <div class="item-head">內容分級問卷 <span class="tag tag-must">必須</span></div>
+        <div class="item-desc">上架時需填寫 IARC 內容分級問卷。同人誌內容如包含暴力、性暗示等，需如實填寫，否則可能被下架。</div>
+        <div class="item-current">尚未評估作品內容的分級。部分同人誌可能涉及 Teen 或 Mature 分級。</div>
+        <div class="item-solution">逐一檢視各作品是否含有需要分級的內容，在 Google Play Console 如實填寫問卷。若有成人內容則需標記為 Mature 17+。</div>
+    </div>
+
+    <div class="item">
+        <div class="item-head">版權與智慧財產權風險 <span class="tag tag-must">必須</span></div>
+        <div class="item-desc">App 內含多部基於知名 IP 的同人作品（鬼滅之刃、寶可夢、我推的孩子、暗殺教室、飛天小女警等），在 Google Play 上架可能觸發版權審查或收到 DMCA 通知。</div>
+        <div class="item-current">App 直接透過 WebView 載入含有這些同人作品的網頁，與單純網站不同，App 上架等於在 Google 平台上分發這些內容。</div>
+        <div class="item-solution">這是最大的上架風險。可能的做法：(1) 僅保留原創作品或已取得授權的作品；(2) 在 App 描述中明確標示為同人創作（Fan Art）；(3) 諮詢法律意見。即使成功上架也隨時可能被下架。</div>
+    </div>
+
+    <div class="item">
+        <div class="item-head">App 簽署金鑰（Signing Key）<span class="tag tag-must">必須</span></div>
+        <div class="item-desc">上架 Google Play 需使用正式的 Release 簽署金鑰產生 AAB（Android App Bundle），不能使用 debug key。</div>
+        <div class="item-current">目前僅有 debug APK（<code>comic_punch_v2.0_debug.apk</code>），未設定 release signing config。</div>
+        <div class="item-solution">在 <code>build.gradle.kts</code> 新增 <code>signingConfigs</code> 設定，產生正式金鑰（keystore），並妥善保管。建議啟用 Google Play App Signing。</div>
+    </div>
+
+    <div class="item">
+        <div class="item-head">需產出 AAB 而非 APK <span class="tag tag-must">必須</span></div>
+        <div class="item-desc">Google Play 自 2021 年起要求新 App 必須以 AAB（Android App Bundle）格式上傳，不接受 APK。</div>
+        <div class="item-current">目前只產出 APK 檔案。</div>
+        <div class="item-solution">使用 <code>./gradlew bundleRelease</code> 產生 AAB 檔案。</div>
+    </div>
+
+    <div class="item">
+        <div class="item-head">WebView 為主的 App 可能被拒 <span class="tag tag-should">建議</span></div>
+        <div class="item-desc">Google Play 的 <strong>Minimum Functionality 政策</strong>明確規範：「僅將網站包裝為 WebView 而未提供 App 特有功能的應用程式」可能被視為 spam 並遭拒絕。</div>
+        <div class="item-current">App 核心功能是兩個 WebView Tab（情報頁 + 漫畫網站），唯一的原生功能是 FCM 推播。</div>
+        <div class="item-solution">增加更多原生功能以區別於網站：離線閱讀、收藏書籤、閱讀歷史頁、下載管理、原生閱讀器等。推播本身通常不足以滿足「App 特有功能」的要求。</div>
+    </div>
+</div>
+
+<!-- ===== 技術問題 ===== -->
+<div class="section" id="tech">
+    <h2><span class="badge badge-warn">需修正</span> 技術問題</h2>
+
+    <div class="item">
+        <div class="item-head">通知圖示使用系統預設 <span class="tag tag-should">建議</span></div>
+        <div class="item-desc">推播通知使用 <code>android.R.drawable.ic_dialog_info</code>（系統預設的「i」圖示），在不同裝置上顯示效果不一，且不專業。</div>
+        <div class="item-current"><code>NotifyMessagingService.java:57</code> 使用系統 drawable。</div>
+        <div class="item-solution">設計專屬的通知小圖示（24x24dp，白色 + 透明底），放置於 <code>res/drawable/</code>，並在 NotificationCompat.Builder 中使用。</div>
+    </div>
+
+    <div class="item">
+        <div class="item-head">Token 更新未重新註冊 <span class="tag tag-should">建議</span></div>
+        <div class="item-desc">FCM Token 會定期更新，但 <code>onNewToken()</code> 只有 Log 輸出，未將新 Token 送回伺服器，導致推播失效。</div>
+        <div class="item-current"><code>NotifyMessagingService.java:37</code> — <code>onNewToken</code> 僅記 Log。</div>
+        <div class="item-solution">在 <code>onNewToken()</code> 中呼叫 <code>sendTokenToServer()</code>（需抽成靜態或共用方法）。</div>
+    </div>
+
+    <div class="item">
+        <div class="item-head">使用已棄用的 onBackPressed <span class="tag tag-should">建議</span></div>
+        <div class="item-desc"><code>onBackPressed()</code> 在 API 33+ 已被標記為 deprecated，應改用 <code>OnBackPressedCallback</code>。</div>
+        <div class="item-current"><code>MainActivity.java:172</code> 覆寫了已棄用的方法。</div>
+        <div class="item-solution">改用 <code>getOnBackPressedDispatcher().addCallback()</code> 搭配 <code>OnBackPressedCallback</code>。</div>
+    </div>
+
+    <div class="item">
+        <div class="item-head">使用已棄用的 FLAG_FULLSCREEN <span class="tag tag-should">建議</span></div>
+        <div class="item-desc"><code>WindowManager.LayoutParams.FLAG_FULLSCREEN</code> 在 API 30+ 已棄用。</div>
+        <div class="item-current"><code>MainActivity.java:105</code> 在閱讀器模式時使用。</div>
+        <div class="item-solution">改用 <code>WindowInsetsController</code> 的 <code>hide(WindowInsets.Type.statusBars())</code>。</div>
+    </div>
+
+    <div class="item">
+        <div class="item-head">缺少 ProGuard / R8 混淆設定 <span class="tag tag-nice">加分</span></div>
+        <div class="item-desc">Release 版本應啟用程式碼混淆與壓縮，減小 APK/AAB 體積並增加逆向難度。</div>
+        <div class="item-current"><code>build.gradle.kts</code> 中沒有 <code>buildTypes</code> 設定。</div>
+        <div class="item-solution">新增 release buildType，啟用 <code>isMinifyEnabled = true</code> 與 <code>isShrinkResources = true</code>。</div>
+    </div>
+
+    <div class="item">
+        <div class="item-head">缺少 xxxhdpi 解析度的啟動圖示 <span class="tag tag-nice">加分</span></div>
+        <div class="item-desc">高解析度裝置（如旗艦機）需要 xxxhdpi（192x192）的圖示才能清晰顯示，且目前的圖示只是簡單幾何圖形。</div>
+        <div class="item-current">圖示只提供到 xxhdpi，且是程式產生的幾何 vector，無品牌辨識度。</div>
+        <div class="item-solution">設計正式的「猛少女之拳」品牌圖示，並使用 Android Studio 的 Image Asset Tool 產出所有尺寸。Google Play 另需 512x512 的高解析度圖示。</div>
+    </div>
+</div>
+
+<!-- ===== 使用者體驗 ===== -->
+<div class="section" id="ux">
+    <h2><span class="badge badge-warn">體驗</span> 使用者體驗問題</h2>
+
+    <div class="item">
+        <div class="item-head">無離線或無網路提示 <span class="tag tag-should">建議</span></div>
+        <div class="item-desc">App 完全依賴網路載入 WebView 內容，斷網時顯示 WebView 預設錯誤頁面（灰底白字），體驗極差。</div>
+        <div class="item-current">無任何網路狀態檢測或錯誤處理。</div>
+        <div class="item-solution">覆寫 <code>WebViewClient.onReceivedError()</code> 顯示自訂離線頁面，加入重試按鈕。</div>
+    </div>
+
+    <div class="item">
+        <div class="item-head">無啟動畫面（Splash Screen）<span class="tag tag-nice">加分</span></div>
+        <div class="item-desc">App 啟動時直接顯示空白 WebView 等待載入，冷啟動會有明顯白屏。</div>
+        <div class="item-current">未實作 Splash Screen。</div>
+        <div class="item-solution">使用 Android 12+ 的 SplashScreen API，設定品牌色背景 + 圖示，讓啟動過程更流暢。</div>
+    </div>
+
+    <div class="item">
+        <div class="item-head">推播點擊只開啟首頁 <span class="tag tag-nice">加分</span></div>
+        <div class="item-desc">收到推播通知後點擊，只會開啟 MainActivity 首頁，無法直接跳轉到對應的更新內容或章節。</div>
+        <div class="item-current"><code>NotifyMessagingService.java:52</code> Intent 無附帶任何 extra 資訊。</div>
+        <div class="item-solution">在推播 payload 中加入目標 URL，Intent 加入 extra，MainActivity 收到後自動導向對應 WebView 頁面。</div>
+    </div>
+
+    <div class="item">
+        <div class="item-head">缺少載入進度指示 <span class="tag tag-nice">加分</span></div>
+        <div class="item-desc">WebView 載入頁面時沒有任何進度條或 loading 動畫，使用者不知道是否在載入。</div>
+        <div class="item-current">利用 <code>WebChromeClient</code> 但未覆寫 <code>onProgressChanged</code>。</div>
+        <div class="item-solution">在 layout 頂部加入 ProgressBar，透過 <code>onProgressChanged</code> 更新進度。</div>
+    </div>
+</div>
+
+<!-- ===== 安全性 ===== -->
+<div class="section" id="security">
+    <h2><span class="badge badge-block">安全</span> 安全性問題</h2>
+
+    <div class="item">
+        <div class="item-head">Token 註冊 API 無身份驗證 <span class="tag tag-should">建議</span></div>
+        <div class="item-desc">任何人都可以向 <code>/api/register_token.php</code> POST 任意字串，可被用來灌假 Token，導致推播時大量失敗、浪費 FCM 配額。</div>
+        <div class="item-current"><code>register_token.php</code> 只檢查 token 是否為空，無任何驗證。</div>
+        <div class="item-solution">加入簡單的 API Key 驗證（App 端 Header 帶 key），或驗證 Token 格式是否符合 FCM Token 規範（約 163 字元的字串）。</div>
+    </div>
+
+    <div class="item">
+        <div class="item-head">推播 Server 無清理失效 Token <span class="tag tag-should">建議</span></div>
+        <div class="item-desc"><code>sendToAllDevices()</code> 逐筆發送但失敗時不刪除失效 Token，隨時間累積大量無效 Token，推播越來越慢。</div>
+        <div class="item-current"><code>fcm_send.php:70</code> 失敗只計數，不處理。</div>
+        <div class="item-solution">當 FCM 回傳 404（Token 已失效）或 UNREGISTERED 錯誤時，從資料庫刪除該 Token。</div>
+    </div>
+
+    <div class="item">
+        <div class="item-head">FCM Project ID 寫死在程式碼中 <span class="tag tag-nice">加分</span></div>
+        <div class="item-desc"><code>fcm_send.php:41</code> 將 Firebase Project ID 直接寫死為 <code>'ignore-comic'</code>，應從 config 讀取。</div>
+        <div class="item-current">硬編碼在原始碼中。</div>
+        <div class="item-solution">改為從 <code>config.php</code> 的 <code>FIREBASE_PROJECT_ID</code> 常數讀取（該常數已定義但未被使用）。</div>
+    </div>
+</div>
+
+<!-- ===== 品質與維運 ===== -->
+<div class="section" id="quality">
+    <h2><span class="badge badge-info">品質</span> 品質與上架準備</h2>
+
+    <div class="item">
+        <div class="item-head">Google Play 商店素材 <span class="tag tag-must">必須</span></div>
+        <div class="item-desc">上架需要準備以下素材，缺一不可：</div>
+        <div class="item-desc" style="margin-top: 6px;">
+            &bull; App 圖示（512 x 512 px PNG）<br>
+            &bull; 功能圖片（Feature Graphic, 1024 x 500 px）<br>
+            &bull; 至少 2 張螢幕截圖（手機尺寸，16:9 或 9:16）<br>
+            &bull; 簡短描述（80 字以內）<br>
+            &bull; 完整描述（4000 字以內）<br>
+            &bull; App 分類選擇（建議：漫畫 Comics）
+        </div>
+        <div class="item-current">以上素材均未準備。</div>
+    </div>
+
+    <div class="item">
+        <div class="item-head">Google Play 開發者帳號 <span class="tag tag-must">必須</span></div>
+        <div class="item-desc">需註冊 Google Play Developer 帳號，一次性費用 USD $25。個人帳號需提供身份驗證。</div>
+        <div class="item-current">未確認是否已註冊。</div>
+    </div>
+
+    <div class="item">
+        <div class="item-head">缺少自動化測試 <span class="tag tag-nice">加分</span></div>
+        <div class="item-desc">App 沒有任何 unit test 或 instrumented test，無法確保推播註冊、WebView 載入等核心流程的正確性。</div>
+        <div class="item-current">無測試檔案。</div>
+        <div class="item-solution">至少為 FCM Token 註冊流程與 WebView 載入撰寫基本測試。</div>
+    </div>
+</div>
+
+<footer>
+    最後更新：2026-11-05 &nbsp;|&nbsp; 猛少女之拳 — Google Play 上架準備追蹤
+</footer>
+
+</body>
+</html>

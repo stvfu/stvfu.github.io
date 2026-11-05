@@ -92,6 +92,18 @@ if ($api !== '') {
         exit;
     }
 
+    if ($api === 'save_unlock') {
+        $input = json_decode(file_get_contents('php://input'), true);
+        $codes = array_values(array_filter(array_map('trim', (array)($input['codes'] ?? []))));
+        $enabled = !empty($input['enabled']);
+        $unlock_path = BASE_PATH . '/data/unlock.json';
+        file_put_contents($unlock_path, json_encode([
+            'codes' => $codes,
+            'enabled' => $enabled,
+        ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT), LOCK_EX);
+        json_out(['ok' => true]);
+    }
+
     if ($api === 'create_work') {
         $input = json_decode(file_get_contents('php://input'), true);
         $title = trim($input['title'] ?? '');
@@ -102,11 +114,13 @@ if ($api !== '') {
         if (isset($data[$id])) json_out(['error' => '此 ID 已存在'], 400);
         $wdir = WORKS_DIR . $id . '/';
         if (!is_dir($wdir)) mkdir($wdir, 0755, true);
+        $type = in_array($input['type'] ?? '', ['original', 'doujin']) ? $input['type'] : 'doujin';
         $data[$id] = [
             'title' => $title,
             'author' => $input['author'] ?? '忽田各',
             'description' => trim($input['description'] ?? ''),
             'cover' => '',
+            'type' => $type,
             'status' => $input['status'] ?? '連載中',
             'genres' => array_map('trim', (array)($input['genres'] ?? ['同人'])),
             'updated' => date('Y-m-d'),
@@ -359,6 +373,7 @@ if ($api !== '') {
             $input = json_decode(file_get_contents('php://input'), true);
             if (isset($input['title'])) $data[$work_id]['title'] = trim($input['title']);
             if (isset($input['description'])) $data[$work_id]['description'] = trim($input['description']);
+            if (isset($input['type']) && in_array($input['type'], ['original', 'doujin'])) $data[$work_id]['type'] = $input['type'];
             if (isset($input['status'])) $data[$work_id]['status'] = trim($input['status']);
             if (isset($input['updated'])) $data[$work_id]['updated'] = trim($input['updated']);
             if (isset($input['genres'])) $data[$work_id]['genres'] = array_map('trim', (array)$input['genres']);
@@ -671,6 +686,13 @@ body{background:#1a1a2e;color:#eee;font-family:-apple-system,BlinkMacSystemFont,
         </div>
         <div class="info-row-inline">
             <div class="info-row">
+                <label>類型</label>
+                <select id="infoType">
+                    <option value="original" <?= ($work['type'] ?? 'doujin') === 'original' ? 'selected' : '' ?>>原創</option>
+                    <option value="doujin" <?= ($work['type'] ?? 'doujin') === 'doujin' ? 'selected' : '' ?>>同人</option>
+                </select>
+            </div>
+            <div class="info-row">
                 <label>狀態</label>
                 <select id="infoStatus">
                     <?php foreach (['連載中','已完結','休刊中'] as $s): ?>
@@ -683,6 +705,7 @@ body{background:#1a1a2e;color:#eee;font-family:-apple-system,BlinkMacSystemFont,
                 <input type="date" id="infoDate" value="<?= htmlspecialchars($work['updated'] ?? date('Y-m-d')) ?>">
             </div>
         </div>
+        <p style="font-size:.78em;color:#888;margin-top:-4px">「原創」作品會顯示於 App 版；「同人」作品僅顯示於網頁版（避免 Google Play 版權問題）</p>
         <button class="btn-save-info" onclick="saveInfo()">儲存變更</button>
     </div>
 </div>
@@ -844,13 +867,14 @@ const apiBase = './?work=' + encodeURIComponent(workId);
 function saveInfo() {
     const title = document.getElementById('infoTitle').value.trim();
     const description = document.getElementById('infoDesc').value.trim();
+    const type = document.getElementById('infoType').value;
     const status = document.getElementById('infoStatus').value;
     const updated = document.getElementById('infoDate').value;
     if (!title) { showToast('標題不能為空', true); return; }
     fetch(apiBase + '&api=save_info', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, description, status, updated })
+        body: JSON.stringify({ title, description, type, status, updated })
     })
     .then(r => r.json())
     .then(d => {
@@ -1308,6 +1332,26 @@ body{background:#1a1a2e;color:#eee;font-family:-apple-system,BlinkMacSystemFont,
     <form method="post" style="display:inline"><button name="logout" value="1" class="btn-logout">登出</button></form>
 </div>
 
+<?php
+    $unlock_file = BASE_PATH . '/data/unlock.json';
+    $unlock_data = file_exists($unlock_file) ? (json_decode(file_get_contents($unlock_file), true) ?: []) : [];
+    $unlock_codes = $unlock_data['codes'] ?? (isset($unlock_data['code']) ? [$unlock_data['code']] : []);
+    $unlock_enabled = !empty($unlock_data['enabled']);
+?>
+<div style="background:#16213e;border-radius:10px;padding:16px 20px;margin-bottom:20px">
+    <h3 style="font-size:.95em;color:#ccc;margin-bottom:10px;border-bottom:1px solid #333;padding-bottom:8px">場次解鎖密語</h3>
+    <p style="font-size:.78em;color:#888;margin-bottom:12px">設定通關密語（每行一組，不分大小寫），到場次攤位的讀者輸入任一組即可在 App 中解鎖同人作品</p>
+    <div style="display:flex;flex-direction:column;gap:10px">
+        <textarea id="unlockCodesInput" rows="3" placeholder="每行一組密語" style="width:100%;padding:10px;border:1px solid #444;border-radius:6px;background:#0f3460;color:#eee;font-size:.95em;font-family:inherit;resize:vertical"><?= htmlspecialchars(implode("\n", $unlock_codes)) ?></textarea>
+        <div style="display:flex;gap:10px;align-items:center">
+            <label style="display:flex;align-items:center;gap:6px;font-size:.88em;color:#aaa;cursor:pointer;white-space:nowrap">
+                <input type="checkbox" id="unlockEnabledCb" <?= $unlock_enabled ? 'checked' : '' ?> style="accent-color:#e94560"> 啟用
+            </label>
+            <button onclick="saveUnlockCode()" style="padding:8px 20px;border:none;border-radius:6px;background:#e94560;color:#fff;cursor:pointer;font-size:.88em;white-space:nowrap">儲存密語</button>
+        </div>
+    </div>
+</div>
+
 <div class="work-list" id="workList">
 <?php foreach ($data as $id => $m): ?>
     <div class="work-row" draggable="true" data-id="<?= htmlspecialchars($id) ?>">
@@ -1327,6 +1371,7 @@ body{background:#1a1a2e;color:#eee;font-family:-apple-system,BlinkMacSystemFont,
                     <?php if (!empty($m['updated'])): ?> · <?= htmlspecialchars($m['updated']) ?><?php endif; ?>
                 </div>
                 <span class="status"><?= htmlspecialchars($m['status'] ?? '連載中') ?></span>
+                <span class="status" style="background:<?= ($m['type'] ?? 'doujin') === 'original' ? '#2d6a4f' : '#6a4c93' ?>"><?= ($m['type'] ?? 'doujin') === 'original' ? '原創' : '同人' ?></span>
             </div>
         </a>
         <div class="work-actions">
@@ -1348,6 +1393,11 @@ body{background:#1a1a2e;color:#eee;font-family:-apple-system,BlinkMacSystemFont,
         <input type="text" id="newWorkTitle" placeholder="例：我的漫畫">
         <label style="font-size:.85em;color:#aaa;display:block;margin-bottom:4px">簡介（選填）</label>
         <input type="text" id="newWorkDesc" placeholder="作品簡介">
+        <label style="font-size:.85em;color:#aaa;display:block;margin-bottom:4px">類型</label>
+        <select id="newWorkType" style="width:100%;padding:10px;border:1px solid #444;border-radius:6px;background:#0f3460;color:#eee;font-size:1em;margin-bottom:12px">
+            <option value="original">原創（App 可見）</option>
+            <option value="doujin" selected>同人（僅網頁版）</option>
+        </select>
         <label style="font-size:.85em;color:#aaa;display:block;margin-bottom:4px">狀態</label>
         <select id="newWorkStatus" style="width:100%;padding:10px;border:1px solid #444;border-radius:6px;background:#0f3460;color:#eee;font-size:1em;margin-bottom:12px">
             <option value="連載中">連載中</option>
@@ -1370,6 +1420,23 @@ function showToast(msg, isError) {
     setTimeout(() => toast.style.display = 'none', 3000);
 }
 
+function saveUnlockCode() {
+    const raw = document.getElementById('unlockCodesInput').value;
+    const codes = raw.split('\n').map(s => s.trim()).filter(Boolean);
+    const enabled = document.getElementById('unlockEnabledCb').checked;
+    fetch('./?api=save_unlock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ codes, enabled })
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.ok) showToast('密語已儲存');
+        else showToast(d.error || '儲存失敗', true);
+    })
+    .catch(() => showToast('網路錯誤', true));
+}
+
 function showCreateWork() {
     document.getElementById('createModal').classList.add('show');
     document.getElementById('newWorkId').value = '';
@@ -1382,13 +1449,14 @@ function createWork() {
     const id = document.getElementById('newWorkId').value.trim();
     const title = document.getElementById('newWorkTitle').value.trim();
     const description = document.getElementById('newWorkDesc').value.trim();
+    const type = document.getElementById('newWorkType').value;
     const status = document.getElementById('newWorkStatus').value;
     if (!id || !title) { showToast('請填寫 ID 和名稱', true); return; }
     if (!/^[a-z0-9_]+$/.test(id)) { showToast('ID 只能使用小寫英文、數字和底線', true); return; }
     fetch('./?api=create_work', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, title, description, status })
+        body: JSON.stringify({ id, title, description, type, status })
     })
     .then(r => r.json())
     .then(d => {
