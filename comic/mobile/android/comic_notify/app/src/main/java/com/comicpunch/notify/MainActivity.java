@@ -330,13 +330,16 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private void sendTokenToServer(String token) {
+    static final String API_KEY = "cpunch_fcm_2026";
+
+    static void sendTokenToServer(String token) {
         new Thread(() -> {
             try {
                 URL url = new URL(SERVER_URL + "/register_token.php");
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+                conn.setRequestProperty("X-Api-Key", API_KEY);
                 conn.setDoOutput(true);
 
                 String body = "token=" + java.net.URLEncoder.encode(token, "UTF-8");

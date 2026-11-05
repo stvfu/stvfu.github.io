@@ -7,10 +7,17 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
+$apiKey = $_SERVER['HTTP_X_API_KEY'] ?? '';
+if ($apiKey !== 'cpunch_fcm_2026') {
+    http_response_code(403);
+    echo json_encode(['error' => 'Forbidden']);
+    exit;
+}
+
 $token = trim($_POST['token'] ?? '');
-if (empty($token)) {
+if (empty($token) || strlen($token) < 100 || strlen($token) > 300) {
     http_response_code(400);
-    echo json_encode(['error' => 'Token required']);
+    echo json_encode(['error' => 'Invalid token']);
     exit;
 }
 

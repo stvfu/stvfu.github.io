@@ -66,15 +66,15 @@ footer { text-align: center; color: var(--muted); font-size: .8em; padding: 30px
         <div class="label">必須解決（Blocker）</div>
     </div>
     <div class="stat stat-warn">
-        <div class="num">4</div>
+        <div class="num">1</div>
         <div class="label">強烈建議（Warning）</div>
     </div>
     <div class="stat stat-nice">
-        <div class="num">6</div>
+        <div class="num">5</div>
         <div class="label">加分項目（Nice to have）</div>
     </div>
     <div class="stat stat-done">
-        <div class="num">7</div>
+        <div class="num">11</div>
         <div class="label">已完成（Done）</div>
     </div>
 </div>
@@ -173,10 +173,9 @@ footer { text-align: center; color: var(--muted); font-size: .8em; padding: 30px
     </div>
 
     <div class="item">
-        <div class="item-head">Token 更新未重新註冊 <span class="tag tag-should">建議</span></div>
+        <div class="item-head">Token 更新未重新註冊 <span class="tag tag-done">已完成</span></div>
         <div class="item-desc">FCM Token 會定期更新，但 <code>onNewToken()</code> 只有 Log 輸出，未將新 Token 送回伺服器，導致推播失效。</div>
-        <div class="item-current"><code>NotifyMessagingService.java:37</code> — <code>onNewToken</code> 僅記 Log。</div>
-        <div class="item-solution">在 <code>onNewToken()</code> 中呼叫 <code>sendTokenToServer()</code>（需抽成靜態或共用方法）。</div>
+        <div class="item-done"><code>sendTokenToServer()</code> 抽為靜態方法，<code>onNewToken()</code> 直接呼叫，Token 更新時自動重新註冊。</div>
     </div>
 
     <div class="item">
@@ -249,24 +248,21 @@ footer { text-align: center; color: var(--muted); font-size: .8em; padding: 30px
     <h2><span class="badge badge-block">安全</span> 安全性問題</h2>
 
     <div class="item">
-        <div class="item-head">Token 註冊 API 無身份驗證 <span class="tag tag-should">建議</span></div>
+        <div class="item-head">Token 註冊 API 無身份驗證 <span class="tag tag-done">已完成</span></div>
         <div class="item-desc">任何人都可以向 <code>/api/register_token.php</code> POST 任意字串，可被用來灌假 Token，導致推播時大量失敗、浪費 FCM 配額。</div>
-        <div class="item-current"><code>register_token.php</code> 只檢查 token 是否為空，無任何驗證。</div>
-        <div class="item-solution">加入簡單的 API Key 驗證（App 端 Header 帶 key），或驗證 Token 格式是否符合 FCM Token 規範（約 163 字元的字串）。</div>
+        <div class="item-done">App 端帶 <code>X-Api-Key</code> header，伺服器端驗證 API Key + Token 長度（100~300 字元）。</div>
     </div>
 
     <div class="item">
-        <div class="item-head">推播 Server 無清理失效 Token <span class="tag tag-should">建議</span></div>
+        <div class="item-head">推播 Server 無清理失效 Token <span class="tag tag-done">已完成</span></div>
         <div class="item-desc"><code>sendToAllDevices()</code> 逐筆發送但失敗時不刪除失效 Token，隨時間累積大量無效 Token，推播越來越慢。</div>
-        <div class="item-current"><code>fcm_send.php:70</code> 失敗只計數，不處理。</div>
-        <div class="item-solution">當 FCM 回傳 404（Token 已失效）或 UNREGISTERED 錯誤時，從資料庫刪除該 Token。</div>
+        <div class="item-done">FCM 回傳 404 或 UNREGISTERED 時自動從資料庫刪除失效 Token，推播結果回傳清理數量。</div>
     </div>
 
     <div class="item">
-        <div class="item-head">FCM Project ID 寫死在程式碼中 <span class="tag tag-nice">加分</span></div>
+        <div class="item-head">FCM Project ID 寫死在程式碼中 <span class="tag tag-done">已完成</span></div>
         <div class="item-desc"><code>fcm_send.php:41</code> 將 Firebase Project ID 直接寫死為 <code>'ignore-comic'</code>，應從 config 讀取。</div>
-        <div class="item-current">硬編碼在原始碼中。</div>
-        <div class="item-solution">改為從 <code>config.php</code> 的 <code>FIREBASE_PROJECT_ID</code> 常數讀取（該常數已定義但未被使用）。</div>
+        <div class="item-done">已改為讀取 <code>config.php</code> 的 <code>FIREBASE_PROJECT_ID</code> 常數。</div>
     </div>
 </div>
 

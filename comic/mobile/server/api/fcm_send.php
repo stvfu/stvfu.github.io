@@ -37,7 +37,7 @@ function sendFcmNotification($token, $title, $body) {
     $accessToken = getAccessToken();
     if (!$accessToken) return false;
 
-    $projectId = 'ignore-comic';
+    $projectId = FIREBASE_PROJECT_ID;
     $url = "https://fcm.googleapis.com/v1/projects/$projectId/messages:send";
 
     $message = [
@@ -64,7 +64,22 @@ function sendFcmNotification($token, $title, $body) {
     $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
 
+    if ($code === 404 || $code === 400) {
+        $respData = json_decode($resp, true);
+        $status = $respData['error']['status'] ?? '';
+        if ($code === 404 || $status === 'NOT_FOUND' || $status === 'UNREGISTERED') {
+            removeToken($token);
+        }
+    }
+
     return $code === 200;
+}
+
+function removeToken($token) {
+    global $db;
+    $stmt = $db->prepare("DELETE FROM fcm_tokens WHERE token = :token");
+    $stmt->bindValue(':token', $token, SQLITE3_TEXT);
+    $stmt->execute();
 }
 
 function sendToAllDevices($title, $body) {
@@ -73,6 +88,9 @@ function sendToAllDevices($title, $body) {
     $results = $db->query("SELECT token FROM fcm_tokens");
     $sent = 0;
     $failed = 0;
+    $cleaned = 0;
+
+    $tokensBefore = $db->querySingle("SELECT COUNT(*) FROM fcm_tokens");
 
     while ($row = $results->fetchArray(SQLITE3_ASSOC)) {
         if (sendFcmNotification($row['token'], $title, $body)) {
@@ -82,7 +100,10 @@ function sendToAllDevices($title, $body) {
         }
     }
 
-    return ['sent' => $sent, 'failed' => $failed];
+    $tokensAfter = $db->querySingle("SELECT COUNT(*) FROM fcm_tokens");
+    $cleaned = $tokensBefore - $tokensAfter;
+
+    return ['sent' => $sent, 'failed' => $failed, 'cleaned' => $cleaned];
 }
 
 function base64url_encode($data) {

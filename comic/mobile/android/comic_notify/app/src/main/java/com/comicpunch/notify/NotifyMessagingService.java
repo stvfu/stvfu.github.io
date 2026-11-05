@@ -35,6 +35,7 @@ public class NotifyMessagingService extends FirebaseMessagingService {
     @Override
     public void onNewToken(String token) {
         Log.d(TAG, "New FCM token: " + token);
+        MainActivity.sendTokenToServer(token);
     }
 
     private void showNotification(String title, String body) {
