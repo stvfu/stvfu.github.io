@@ -26,3 +26,4 @@ works/*/cover.*
 # Data (manga metadata, managed by admin panel)
 data/manga.json
 data/unlock.json
+data/app_version.json

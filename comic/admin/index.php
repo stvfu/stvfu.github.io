@@ -104,6 +104,20 @@ if ($api !== '') {
         json_out(['ok' => true]);
     }
 
+    if ($api === 'save_app_version') {
+        $input = json_decode(file_get_contents('php://input'), true);
+        $version_path = BASE_PATH . '/data/app_version.json';
+        $ver = [
+            'version_code' => (int)($input['version_code'] ?? 0),
+            'version_name' => trim($input['version_name'] ?? ''),
+            'download_url' => trim($input['download_url'] ?? ''),
+            'changelog' => trim($input['changelog'] ?? ''),
+            'required' => !empty($input['required']),
+        ];
+        file_put_contents($version_path, json_encode($ver, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT), LOCK_EX);
+        json_out(['ok' => true]);
+    }
+
     if ($api === 'create_work') {
         $input = json_decode(file_get_contents('php://input'), true);
         $title = trim($input['title'] ?? '');
@@ -1352,6 +1366,40 @@ body{background:#1a1a2e;color:#eee;font-family:-apple-system,BlinkMacSystemFont,
     </div>
 </div>
 
+<?php
+    $ver_file = BASE_PATH . '/data/app_version.json';
+    $ver_data = file_exists($ver_file) ? (json_decode(file_get_contents($ver_file), true) ?: []) : [];
+?>
+<div style="background:#16213e;border-radius:10px;padding:16px 20px;margin-bottom:20px">
+    <h3 style="font-size:.95em;color:#ccc;margin-bottom:10px;border-bottom:1px solid #333;padding-bottom:8px">App 版本管理</h3>
+    <p style="font-size:.78em;color:#888;margin-bottom:12px">設定最新 App 版本資訊，使用者開啟舊版 App 時會收到更新提示</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div>
+            <label style="font-size:.78em;color:#888">版本號碼 (version_code)</label>
+            <input type="number" id="verCode" value="<?= (int)($ver_data['version_code'] ?? 0) ?>" min="1" style="width:100%;padding:8px 10px;border:1px solid #444;border-radius:6px;background:#0f3460;color:#eee;font-size:.95em">
+        </div>
+        <div>
+            <label style="font-size:.78em;color:#888">版本名稱</label>
+            <input type="text" id="verName" value="<?= htmlspecialchars($ver_data['version_name'] ?? '') ?>" placeholder="例：3.0" style="width:100%;padding:8px 10px;border:1px solid #444;border-radius:6px;background:#0f3460;color:#eee;font-size:.95em">
+        </div>
+    </div>
+    <div style="margin-bottom:10px">
+        <label style="font-size:.78em;color:#888">下載連結</label>
+        <input type="text" id="verUrl" value="<?= htmlspecialchars($ver_data['download_url'] ?? '') ?>" placeholder="https://stvfu.com/comic/mobile/download/xxx.apk" style="width:100%;padding:8px 10px;border:1px solid #444;border-radius:6px;background:#0f3460;color:#eee;font-size:.95em">
+    </div>
+    <div style="margin-bottom:10px">
+        <label style="font-size:.78em;color:#888">更新說明</label>
+        <input type="text" id="verChangelog" value="<?= htmlspecialchars($ver_data['changelog'] ?? '') ?>" placeholder="這個版本做了什麼改動" style="width:100%;padding:8px 10px;border:1px solid #444;border-radius:6px;background:#0f3460;color:#eee;font-size:.95em">
+    </div>
+    <div style="display:flex;gap:10px;align-items:center">
+        <label style="display:flex;align-items:center;gap:6px;font-size:.88em;color:#aaa;cursor:pointer;white-space:nowrap">
+            <input type="checkbox" id="verRequired" <?= !empty($ver_data['required']) ? 'checked' : '' ?> style="accent-color:#e94560"> 強制更新
+        </label>
+        <button onclick="saveAppVersion()" style="padding:8px 20px;border:none;border-radius:6px;background:#e94560;color:#fff;cursor:pointer;font-size:.88em;white-space:nowrap">儲存版本</button>
+        <span id="verMsg" style="font-size:.82em;color:#6a6"></span>
+    </div>
+</div>
+
 <div class="work-list" id="workList">
 <?php foreach ($data as $id => $m): ?>
     <div class="work-row" draggable="true" data-id="<?= htmlspecialchars($id) ?>">
@@ -1435,6 +1483,29 @@ function saveUnlockCode() {
         else showToast(d.error || '儲存失敗', true);
     })
     .catch(() => showToast('網路錯誤', true));
+}
+
+function saveAppVersion() {
+    const data = {
+        version_code: parseInt(document.getElementById('verCode').value) || 0,
+        version_name: document.getElementById('verName').value.trim(),
+        download_url: document.getElementById('verUrl').value.trim(),
+        changelog: document.getElementById('verChangelog').value.trim(),
+        required: document.getElementById('verRequired').checked
+    };
+    const msg = document.getElementById('verMsg');
+    fetch('./?api=save_app_version', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.ok) { msg.textContent = '已儲存'; msg.style.color = '#6a6'; }
+        else { msg.textContent = d.error || '儲存失敗'; msg.style.color = '#e94560'; }
+        setTimeout(() => { msg.textContent = ''; }, 3000);
+    })
+    .catch(() => { msg.textContent = '網路錯誤'; msg.style.color = '#e94560'; });
 }
 
 function showCreateWork() {

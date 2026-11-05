@@ -32,11 +32,14 @@ h1 { font-size: 1.5em; margin-bottom: 4px; }
 .tag-must { background: var(--red); }
 .tag-should { background: var(--yellow); color: #222; }
 .tag-nice { background: var(--green); }
-.tag-done { background: #555; }
+.tag-done { background: #4caf50; }
+.stat-done .num { color: #4caf50; }
 .item-desc { font-size: .88em; color: #bbb; }
 .item-desc code { background: rgba(255,255,255,.08); padding: 1px 6px; border-radius: 3px; font-size: .9em; }
 .item-current { font-size: .82em; color: var(--red); margin-top: 4px; }
 .item-current::before { content: "現況："; font-weight: 600; }
+.item-done { font-size: .82em; color: #4caf50; margin-top: 4px; }
+.item-done::before { content: "✓ 已完成："; font-weight: 600; }
 .item-solution { font-size: .82em; color: var(--green); margin-top: 2px; }
 .item-solution::before { content: "解法："; font-weight: 600; }
 .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 30px; }
@@ -59,7 +62,7 @@ footer { text-align: center; color: var(--muted); font-size: .8em; padding: 30px
 
 <div class="summary">
     <div class="stat stat-block">
-        <div class="num">7</div>
+        <div class="num">6</div>
         <div class="label">必須解決（Blocker）</div>
     </div>
     <div class="stat stat-warn">
@@ -69,6 +72,10 @@ footer { text-align: center; color: var(--muted); font-size: .8em; padding: 30px
     <div class="stat stat-nice">
         <div class="num">6</div>
         <div class="label">加分項目（Nice to have）</div>
+    </div>
+    <div class="stat stat-done">
+        <div class="num">1</div>
+        <div class="label">已完成（Done）</div>
     </div>
 </div>
 
@@ -106,10 +113,16 @@ footer { text-align: center; color: var(--muted); font-size: .8em; padding: 30px
     </div>
 
     <div class="item">
-        <div class="item-head">版權與智慧財產權風險 <span class="tag tag-must">必須</span></div>
+        <div class="item-head">版權與智慧財產權風險 <span class="tag tag-done">已完成</span></div>
         <div class="item-desc">App 內含多部基於知名 IP 的同人作品（鬼滅之刃、寶可夢、我推的孩子、暗殺教室、飛天小女警等），在 Google Play 上架可能觸發版權審查或收到 DMCA 通知。</div>
-        <div class="item-current">App 直接透過 WebView 載入含有這些同人作品的網頁，與單純網站不同，App 上架等於在 Google 平台上分發這些內容。</div>
-        <div class="item-solution">這是最大的上架風險。可能的做法：(1) 僅保留原創作品或已取得授權的作品；(2) 在 App 描述中明確標示為同人創作（Fan Art）；(3) 諮詢法律意見。即使成功上架也隨時可能被下架。</div>
+        <div class="item-done">
+            實作了多層防護機制：<br>
+            &bull; 作品新增 <code>type</code> 欄位（<code>original</code> / <code>doujin</code>），從資料層分離原創與同人作品<br>
+            &bull; App 透過 <code>?type=original</code> 進入，伺服器端過濾，預設僅回傳原創作品，同人作品完全不出現在 App 頁面中<br>
+            &bull; 網頁版（<code>/comic/</code>）不受影響，照常顯示全部作品<br>
+            &bull; 場次限定：通關密語解鎖機制（<code>unlock.php</code>），到場次攤位取得密語後可在 App 內解鎖瀏覽同人作品，Cookie 有效期 90 天<br>
+            &bull; 後台可管理密語內容、多組密語、啟用/停用開關
+        </div>
     </div>
 
     <div class="item">
@@ -129,8 +142,8 @@ footer { text-align: center; color: var(--muted); font-size: .8em; padding: 30px
     <div class="item">
         <div class="item-head">WebView 為主的 App 可能被拒 <span class="tag tag-should">建議</span></div>
         <div class="item-desc">Google Play 的 <strong>Minimum Functionality 政策</strong>明確規範：「僅將網站包裝為 WebView 而未提供 App 特有功能的應用程式」可能被視為 spam 並遭拒絕。</div>
-        <div class="item-current">App 核心功能是兩個 WebView Tab（情報頁 + 漫畫網站），唯一的原生功能是 FCM 推播。</div>
-        <div class="item-solution">增加更多原生功能以區別於網站：離線閱讀、收藏書籤、閱讀歷史頁、下載管理、原生閱讀器等。推播本身通常不足以滿足「App 特有功能」的要求。</div>
+        <div class="item-current">App 核心功能是兩個 WebView Tab（情報頁 + 漫畫網站），原生功能有 FCM 推播。已新增 App 專屬的通關密語解鎖互動（網頁版無此機制），提供了與網站不同的差異化體驗，但仍建議增加更多原生功能。</div>
+        <div class="item-solution">繼續增加原生功能以強化差異：離線閱讀、收藏書籤、閱讀歷史頁、下載管理、原生閱讀器等。</div>
     </div>
 </div>
 
@@ -273,7 +286,7 @@ footer { text-align: center; color: var(--muted); font-size: .8em; padding: 30px
 </div>
 
 <footer>
-    最後更新：2026-11-05 &nbsp;|&nbsp; 猛少女之拳 — Google Play 上架準備追蹤
+    最後更新：2026-11-05（版權問題已解決）&nbsp;|&nbsp; 猛少女之拳 — Google Play 上架準備追蹤
 </footer>
 
 </body>

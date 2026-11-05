@@ -55,6 +55,11 @@ uasort($manga_list, fn($a, $b) => strcmp($b['updated'] ?? '', $a['updated'] ?? '
 
 <?php if (!$is_app): ?>
 <!-- ===== WEB MODE: show everything, no lock UI ===== -->
+<div class="app-banner" id="appBanner">
+    <span class="app-banner-text">&#x1F4F1; 下載 App，獲得推播通知與離線閱讀功能</span>
+    <a href="<?= BASE_URL ?>/mobile/download/comic_punch_v3.0_debug.apk" class="app-banner-btn">下載 APK</a>
+    <button class="app-banner-close" onclick="closeAppBanner()" title="關閉">&times;</button>
+</div>
 <div class="search-bar">
     <input type="text" id="searchInput" placeholder="搜尋漫畫名稱..." oninput="filterManga()">
 </div>
@@ -102,6 +107,14 @@ function filterManga() {
         const genres = card.dataset.genres.toLowerCase();
         card.style.display = (title.includes(q) || genres.includes(q)) ? '' : 'none';
     });
+}
+function closeAppBanner() {
+    document.getElementById('appBanner').style.display = 'none';
+    localStorage.setItem('app_banner_closed', '1');
+}
+if (localStorage.getItem('app_banner_closed')) {
+    var b = document.getElementById('appBanner');
+    if (b) b.style.display = 'none';
 }
 </script>
 <?php endif; ?>

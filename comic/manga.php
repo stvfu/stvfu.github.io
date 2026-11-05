@@ -104,7 +104,9 @@ $last_ch = !empty($chapters) ? $chapters[count($chapters) - 1] : null;
             <?php foreach (array_reverse($chapters) as $ch): ?>
             <li data-category="<?= htmlspecialchars($ch['category'] ?? '') ?>"
                 data-has-cover="<?= !empty($ch['cover']) ? '1' : '0' ?>"
-                data-link="<?= htmlspecialchars($ch['link'] ?? '') ?>">
+                data-link="<?= htmlspecialchars($ch['link'] ?? '') ?>"
+                data-manga-id="<?= htmlspecialchars($id) ?>"
+                data-chapter-id="<?= htmlspecialchars($ch['id']) ?>">
                 <a href="reader.php?id=<?= urlencode($id) ?>&ch=<?= urlencode($ch['id']) ?>">
                     <?php if (!empty($ch['cover'])): ?>
                         <img src="<?= htmlspecialchars($ch['cover']) ?>" class="ch-cover-thumb" alt="">
@@ -115,6 +117,7 @@ $last_ch = !empty($chapters) ? $chapters[count($chapters) - 1] : null;
                 <?php if (!empty($ch['link'])): ?>
                     <a href="<?= htmlspecialchars($ch['link']) ?>" target="_blank" rel="noopener" class="ch-ext-link">購買連結</a>
                 <?php endif; ?>
+                <button class="ch-dl-btn" style="display:none" title="離線下載"></button>
             </li>
             <?php endforeach; ?>
         </ul>
@@ -159,6 +162,72 @@ $last_ch = !empty($chapters) ? $chapters[count($chapters) - 1] : null;
         <?php endif; ?>
     </div>
 </div>
+
+<script>
+(function() {
+    if (typeof ComicOffline === 'undefined') return;
+
+    document.getElementById('chapterList').classList.add('has-dl');
+    var mangaId = <?= json_encode($id) ?>;
+    var dlBtns = document.querySelectorAll('.ch-dl-btn');
+
+    dlBtns.forEach(function(btn) {
+        btn.style.display = '';
+        var li = btn.closest('li');
+        var chId = li.dataset.chapterId;
+        updateBtn(btn, mangaId, chId);
+
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var progress = ComicOffline.getProgress(mangaId, chId);
+            if (progress === 100 || ComicOffline.isDownloaded(mangaId, chId)) {
+                if (confirm('刪除此章節的離線資料？')) {
+                    ComicOffline.deleteChapter(mangaId, chId);
+                    updateBtn(btn, mangaId, chId);
+                }
+            } else if (progress >= 0 && progress < 100) {
+                return;
+            } else {
+                ComicOffline.download(mangaId, chId);
+                btn.textContent = '0%';
+                btn.className = 'ch-dl-btn downloading';
+                pollProgress(btn, mangaId, chId);
+            }
+        });
+    });
+
+    function updateBtn(btn, mid, cid) {
+        if (ComicOffline.isDownloaded(mid, cid)) {
+            btn.textContent = '✓';
+            btn.className = 'ch-dl-btn downloaded';
+            btn.title = '已下載（點擊刪除）';
+        } else {
+            btn.textContent = '↓';
+            btn.className = 'ch-dl-btn';
+            btn.title = '離線下載';
+        }
+    }
+
+    function pollProgress(btn, mid, cid) {
+        var timer = setInterval(function() {
+            var p = ComicOffline.getProgress(mid, cid);
+            if (p >= 100) {
+                clearInterval(timer);
+                updateBtn(btn, mid, cid);
+            } else if (p < 0) {
+                clearInterval(timer);
+                btn.textContent = '✗';
+                btn.className = 'ch-dl-btn failed';
+                btn.title = '下載失敗，點擊重試';
+                setTimeout(function() { updateBtn(btn, mid, cid); }, 3000);
+            } else {
+                btn.textContent = p + '%';
+            }
+        }, 500);
+    }
+})();
+</script>
 
 <footer class="site-footer"><?= SITE_NAME ?></footer>
 </body>

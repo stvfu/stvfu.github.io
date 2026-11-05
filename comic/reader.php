@@ -40,6 +40,7 @@ $all_chapters = $manga['chapters'];
         </select>
         <span class="page-count"><?= $total ?> 頁</span>
         <span class="page-count" id="viewCount"></span>
+        <span class="offline-badge" id="offlineBadge" style="display:none">離線</span>
     </div>
 </div>
 
@@ -315,6 +316,10 @@ function submitComment(e) {
 }
 
 loadComments();
+
+if (typeof ComicOffline !== 'undefined' && ComicOffline.isDownloaded(mangaId, chapterId)) {
+    document.getElementById('offlineBadge').style.display = '';
+}
 </script>
 
 <?php else: ?>
