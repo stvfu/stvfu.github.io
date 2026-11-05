@@ -1,6 +1,0 @@
-<Files "db.php">
-    Deny from all
-</Files>
-<Files "fcm_send.php">
-    Deny from all
-</Files>

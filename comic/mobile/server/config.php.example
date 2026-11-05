@@ -1,7 +1,0 @@
-<?php
-define('DATA_ROOT', '/path/to/data');
-
-define('ADMIN_PASS', 'YOUR_PASSWORD_HERE');
-define('FIREBASE_KEY_PATH', DATA_ROOT . '/key/ignore-comic-firebase-adminsdk-fbsvc-381251d30d.json');
-define('FIREBASE_PROJECT_ID', 'ignore-comic');
-define('DB_PATH', DATA_ROOT . '/data/comic_notify.db');
