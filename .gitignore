@@ -1,0 +1,3 @@
+# comic/ 已獨立至 github.com/stvfu/comicpunch_app
+# 部署用 sync_comicpunch_repo_to_comic.sh 在 repo root
+comic/
