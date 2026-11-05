@@ -24,6 +24,7 @@ $last_ch = !empty($chapters) ? $chapters[count($chapters) - 1] : null;
 <body>
 
 <header class="site-header compact">
+    <a href="<?= BASE_URL ?>/" class="home-btn">← 首頁</a>
     <h1><a href="<?= BASE_URL ?>/"><?= SITE_NAME ?></a></h1>
 </header>
 

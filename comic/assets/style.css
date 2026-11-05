@@ -50,8 +50,19 @@ a:hover { color: var(--accent-hover); }
     color: var(--text-secondary);
     font-size: 0.9em;
 }
-.site-header.compact { padding: 14px 20px; }
-.site-header.compact h1 { font-size: 1.2em; letter-spacing: 1px; }
+.site-header.compact { padding: 14px 20px; display: flex; align-items: center; gap: 16px; }
+.site-header.compact h1 { font-size: 1.2em; letter-spacing: 1px; flex: 1; }
+.home-btn {
+    color: var(--text-secondary);
+    font-size: 0.88em;
+    padding: 6px 14px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-card);
+    transition: background 0.15s, color 0.15s;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.home-btn:hover { background: var(--bg-card-hover); color: var(--text-primary); }
 
 /* ===== SEARCH ===== */
 .search-bar {
@@ -338,7 +349,7 @@ a:hover { color: var(--accent-hover); }
     margin: 0 auto;
     padding: 0 0 20px;
 }
-.scroll-view .page { width: 100%; display: flex; justify-content: center; }
+.scroll-view .page { width: 100%; display: flex; justify-content: center; margin-bottom: 12px; }
 .scroll-view .page img { max-width: 100%; height: auto; display: block; }
 
 /* ===== SINGLE VIEW ===== */

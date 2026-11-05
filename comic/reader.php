@@ -26,6 +26,7 @@ $all_chapters = $manga['chapters'];
 
 <div class="reader-header">
     <div class="left">
+        <a href="<?= BASE_URL ?>/" class="back-btn" title="回首頁">⌂</a>
         <a href="manga.php?id=<?= urlencode($manga_id) ?>" class="back-btn" title="返回目錄">&larr;</a>
         <span class="title"><?= htmlspecialchars($manga['title']) ?></span>
     </div>

@@ -92,6 +92,65 @@ if ($api !== '') {
         exit;
     }
 
+    if ($api === 'create_work') {
+        $input = json_decode(file_get_contents('php://input'), true);
+        $title = trim($input['title'] ?? '');
+        $id = trim($input['id'] ?? '');
+        if (!$title) json_out(['error' => '請輸入作品名稱'], 400);
+        if (!$id || !validate_work_id($id)) json_out(['error' => 'ID 只能使用小寫英文、數字和底線'], 400);
+        $data = load_data();
+        if (isset($data[$id])) json_out(['error' => '此 ID 已存在'], 400);
+        $wdir = WORKS_DIR . $id . '/';
+        if (!is_dir($wdir)) mkdir($wdir, 0755, true);
+        $data[$id] = [
+            'title' => $title,
+            'author' => $input['author'] ?? '忽田各',
+            'description' => trim($input['description'] ?? ''),
+            'cover' => '',
+            'status' => $input['status'] ?? '連載中',
+            'genres' => array_map('trim', (array)($input['genres'] ?? ['同人'])),
+            'updated' => date('Y-m-d'),
+            'chapters' => [],
+        ];
+        save_data($data);
+        json_out(['ok' => true, 'id' => $id]);
+    }
+
+    if ($api === 'reorder_works') {
+        $input = json_decode(file_get_contents('php://input'), true);
+        $ids = $input['order'] ?? [];
+        if (!is_array($ids) || empty($ids)) json_out(['error' => 'Invalid order'], 400);
+        $data = load_data();
+        $reordered = [];
+        foreach ($ids as $id) {
+            if (isset($data[$id])) $reordered[$id] = $data[$id];
+        }
+        foreach ($data as $id => $v) {
+            if (!isset($reordered[$id])) $reordered[$id] = $v;
+        }
+        save_data($reordered);
+        json_out(['ok' => true]);
+    }
+
+    if ($api === 'delete_work') {
+        $input = json_decode(file_get_contents('php://input'), true);
+        $del_id = trim($input['id'] ?? '');
+        if (!$del_id || !validate_work_id($del_id)) json_out(['error' => 'Invalid work'], 400);
+        $data = load_data();
+        if (!isset($data[$del_id])) json_out(['error' => '作品不存在'], 404);
+        $wdir = WORKS_DIR . $del_id;
+        if (is_dir($wdir)) {
+            $it = new RecursiveDirectoryIterator($wdir, RecursiveDirectoryIterator::SKIP_DOTS);
+            foreach (new RecursiveIteratorIterator($it, RecursiveIteratorIterator::CHILD_FIRST) as $f) {
+                $f->isDir() ? rmdir($f->getRealPath()) : unlink($f->getRealPath());
+            }
+            rmdir($wdir);
+        }
+        unset($data[$del_id]);
+        save_data($data);
+        json_out(['ok' => true]);
+    }
+
     if (!$work_id || !validate_work_id($work_id)) json_out(['error' => 'Invalid work'], 400);
     $data = load_data();
     if (!isset($data[$work_id])) json_out(['error' => 'Work not found'], 404);
@@ -297,7 +356,27 @@ if ($api !== '') {
             if (isset($input['title'])) $data[$work_id]['title'] = trim($input['title']);
             if (isset($input['description'])) $data[$work_id]['description'] = trim($input['description']);
             if (isset($input['status'])) $data[$work_id]['status'] = trim($input['status']);
+            if (isset($input['updated'])) $data[$work_id]['updated'] = trim($input['updated']);
             if (isset($input['genres'])) $data[$work_id]['genres'] = array_map('trim', (array)$input['genres']);
+            save_data($data);
+            json_out(['ok' => true]);
+            break;
+
+        case 'rename_chapter':
+            $ch_id = $_GET['ch'] ?? '';
+            $input = json_decode(file_get_contents('php://input'), true);
+            $new_title = trim($input['title'] ?? '');
+            if (!$new_title) json_out(['error' => '標題不能為空'], 400);
+            $found = false;
+            foreach ($data[$work_id]['chapters'] as &$ch) {
+                if ($ch['id'] === $ch_id) {
+                    $ch['title'] = $new_title;
+                    $found = true;
+                    break;
+                }
+            }
+            unset($ch);
+            if (!$found) json_out(['error' => '章節不存在'], 404);
             save_data($data);
             json_out(['ok' => true]);
             break;
@@ -478,6 +557,20 @@ body{background:#1a1a2e;color:#eee;font-family:-apple-system,BlinkMacSystemFont,
 .modal .modal-btns button{padding:8px 20px;border:none;border-radius:6px;cursor:pointer;font-size:.9em;color:#fff}
 .modal .btn-ok{background:#e94560}
 .modal .btn-cancel{background:#555}
+
+.info-form{display:flex;flex-direction:column;gap:12px}
+.info-row{display:flex;flex-direction:column;gap:4px}
+.info-row label{font-size:.85em;color:#aaa}
+.info-row input,.info-row textarea,.info-row select{padding:10px;border:1px solid #444;border-radius:6px;background:#0f3460;color:#eee;font-size:.95em;font-family:inherit;resize:vertical}
+.info-row input:focus,.info-row textarea:focus,.info-row select:focus{border-color:#e94560;outline:none}
+.info-row-inline{display:flex;gap:16px}
+.info-row-inline .info-row{flex:1}
+.btn-save-info{align-self:flex-start;padding:10px 28px;border:none;border-radius:6px;background:#e94560;color:#fff;cursor:pointer;font-size:.92em;margin-top:4px}
+.btn-save-info:hover{background:#c73e54}
+
+.ch-tab{position:relative}
+.ch-rename{margin-left:4px;opacity:.4;font-size:.75em;cursor:pointer}
+.ch-rename:hover{opacity:1}
 </style>
 </head>
 <body>
@@ -507,6 +600,36 @@ body{background:#1a1a2e;color:#eee;font-family:-apple-system,BlinkMacSystemFont,
     </div>
 </div>
 
+<!-- Info Edit -->
+<div class="section">
+    <h3>作品資訊</h3>
+    <div class="info-form">
+        <div class="info-row">
+            <label>標題</label>
+            <input type="text" id="infoTitle" value="<?= htmlspecialchars($work['title']) ?>">
+        </div>
+        <div class="info-row">
+            <label>簡介</label>
+            <textarea id="infoDesc" rows="3"><?= htmlspecialchars($work['description'] ?? '') ?></textarea>
+        </div>
+        <div class="info-row-inline">
+            <div class="info-row">
+                <label>狀態</label>
+                <select id="infoStatus">
+                    <?php foreach (['連載中','已完結','休刊中'] as $s): ?>
+                        <option value="<?= $s ?>" <?= ($work['status'] ?? '') === $s ? 'selected' : '' ?>><?= $s ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="info-row">
+                <label>更新日期</label>
+                <input type="date" id="infoDate" value="<?= htmlspecialchars($work['updated'] ?? date('Y-m-d')) ?>">
+            </div>
+        </div>
+        <button class="btn-save-info" onclick="saveInfo()">儲存變更</button>
+    </div>
+</div>
+
 <!-- Chapters -->
 <div class="section">
     <h3>章節管理</h3>
@@ -515,6 +638,7 @@ body{background:#1a1a2e;color:#eee;font-family:-apple-system,BlinkMacSystemFont,
             <a href="?work=<?= urlencode($work_id) ?>&ch=<?= urlencode($ch['id']) ?>"
                class="ch-tab <?= $ch['id'] === $active_ch ? 'active' : '' ?>">
                 <?= htmlspecialchars($ch['title']) ?>
+                <span class="ch-rename" onclick="event.preventDefault();showRenameChapter('<?= htmlspecialchars($ch['id']) ?>','<?= htmlspecialchars(addslashes($ch['title'])) ?>')" title="重新命名">✎</span>
                 <span class="ch-del" onclick="event.preventDefault();deleteChapter('<?= htmlspecialchars($ch['id']) ?>','<?= htmlspecialchars($ch['title']) ?>')" title="刪除章節">✕</span>
             </a>
         <?php endforeach; ?>
@@ -562,11 +686,80 @@ body{background:#1a1a2e;color:#eee;font-family:-apple-system,BlinkMacSystemFont,
     </div>
 </div>
 
+<!-- Rename Chapter Modal -->
+<div class="modal-overlay" id="renameModal">
+    <div class="modal">
+        <h3>重新命名章節</h3>
+        <input type="text" id="renameTitle" placeholder="新的章節名稱">
+        <input type="hidden" id="renameChId">
+        <div class="modal-btns">
+            <button class="btn-cancel" onclick="document.getElementById('renameModal').classList.remove('show')">取消</button>
+            <button class="btn-ok" onclick="renameChapter()">儲存</button>
+        </div>
+    </div>
+</div>
+
 <script>
 const workId = <?= json_encode($work_id) ?>;
 const activeChId = <?= json_encode($active_ch) ?>;
 const activeChDir = <?= json_encode($active_chapter['dir'] ?? '') ?>;
 const apiBase = './?work=' + encodeURIComponent(workId);
+
+// ── Save Info ──
+function saveInfo() {
+    const title = document.getElementById('infoTitle').value.trim();
+    const description = document.getElementById('infoDesc').value.trim();
+    const status = document.getElementById('infoStatus').value;
+    const updated = document.getElementById('infoDate').value;
+    if (!title) { showToast('標題不能為空', true); return; }
+    fetch(apiBase + '&api=save_info', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, description, status, updated })
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.ok) {
+            showToast('作品資訊已儲存');
+            document.querySelector('.top-bar h2').textContent = title;
+        } else {
+            showToast(d.error || '儲存失敗', true);
+        }
+    })
+    .catch(() => showToast('網路錯誤', true));
+}
+
+// ── Rename Chapter ──
+function showRenameChapter(chId, currentTitle) {
+    document.getElementById('renameChId').value = chId;
+    document.getElementById('renameTitle').value = currentTitle;
+    document.getElementById('renameModal').classList.add('show');
+    document.getElementById('renameTitle').focus();
+    document.getElementById('renameTitle').select();
+}
+document.getElementById('renameTitle').addEventListener('keydown', e => { if (e.key === 'Enter') renameChapter(); });
+
+function renameChapter() {
+    const chId = document.getElementById('renameChId').value;
+    const title = document.getElementById('renameTitle').value.trim();
+    if (!title) { showToast('標題不能為空', true); return; }
+    fetch(apiBase + '&api=rename_chapter&ch=' + encodeURIComponent(chId), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title })
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.ok) {
+            showToast('章節已重新命名');
+            document.getElementById('renameModal').classList.remove('show');
+            setTimeout(() => location.reload(), 500);
+        } else {
+            showToast(d.error || '重新命名失敗', true);
+        }
+    })
+    .catch(() => showToast('網路錯誤', true));
+}
 
 const grid = document.getElementById('grid');
 const dropZone = document.getElementById('dropZone');
@@ -878,47 +1071,258 @@ body{background:#1a1a2e;color:#eee;font-family:-apple-system,BlinkMacSystemFont,
 .btn-logout{background:#555}
 .btn-logout:hover{background:#777}
 
-.work-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:20px}
-.work-card{background:#16213e;border-radius:10px;overflow:hidden;transition:transform .15s,box-shadow .15s;cursor:pointer;text-decoration:none;color:inherit;display:block}
-.work-card:hover{transform:translateY(-3px);box-shadow:0 6px 20px rgba(0,0,0,.3)}
-.work-cover{width:100%;height:260px;background:#0a0a1a;display:flex;align-items:center;justify-content:center;overflow:hidden}
-.work-cover img{width:100%;height:100%;object-fit:cover}
-.work-cover .placeholder{font-size:3em;color:#333}
-.work-info{padding:14px}
-.work-info h3{font-size:1.05em;margin-bottom:4px}
-.work-info .meta{font-size:.8em;color:#888}
-.work-info .status{display:inline-block;padding:2px 8px;border-radius:4px;font-size:.75em;background:#333;margin-top:6px}
+.work-list{display:flex;flex-direction:column;gap:10px}
+.work-row{display:flex;align-items:center;gap:14px;background:#16213e;border-radius:10px;padding:10px 14px;transition:box-shadow .15s,background .15s;position:relative}
+.work-row:hover{background:#1a2744;box-shadow:0 4px 16px rgba(0,0,0,.25)}
+.work-row.dragging{opacity:.4}
+.work-row.drag-over{box-shadow:0 0 0 2px #e94560}
+.drag-handle{cursor:grab;color:#555;font-size:1.2em;padding:4px 2px;flex-shrink:0;user-select:none;touch-action:none}
+.drag-handle:active{cursor:grabbing}
+.work-thumb{width:56px;height:75px;border-radius:6px;overflow:hidden;background:#0a0a1a;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.work-thumb img{width:100%;height:100%;object-fit:cover}
+.work-thumb .placeholder{font-size:1.4em;color:#333}
+.work-body{flex:1;min-width:0}
+.work-body h3{font-size:.95em;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.work-body .meta{font-size:.78em;color:#888}
+.work-body .status{display:inline-block;padding:1px 8px;border-radius:4px;font-size:.7em;background:#333;margin-top:3px}
+.work-row-link{display:flex;align-items:center;gap:14px;text-decoration:none;color:inherit;flex:1;min-width:0}
+.work-actions{display:flex;gap:6px;flex-shrink:0}
+.work-del-btn{width:30px;height:30px;border:none;border-radius:50%;background:rgba(233,69,96,.7);color:#fff;cursor:pointer;font-size:.82em;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .15s}
+.work-row:hover .work-del-btn{opacity:1}
+@media(max-width:600px){
+    .work-row{padding:8px 10px;gap:10px}
+    .work-thumb{width:48px;height:64px}
+    .work-body h3{font-size:.88em}
+    .work-del-btn{opacity:.7}
+}
+.toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#2d6a4f;color:#fff;padding:10px 28px;border-radius:8px;font-size:.92em;display:none;z-index:999}
+.toast.error{background:#e94560}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;justify-content:center;align-items:center}
+.modal-overlay.show{display:flex}
+.modal{background:#16213e;padding:24px;border-radius:12px;min-width:300px}
+.modal h3{margin-bottom:16px}
+.modal input{width:100%;padding:10px;border:1px solid #444;border-radius:6px;background:#0f3460;color:#eee;font-size:1em;margin-bottom:12px}
+.modal .modal-btns{display:flex;gap:10px;justify-content:flex-end}
+.modal .modal-btns button{padding:8px 20px;border:none;border-radius:6px;cursor:pointer;font-size:.9em;color:#fff}
+.modal .btn-ok{background:#e94560}
+.modal .btn-cancel{background:#555}
 </style>
 </head>
 <body>
 
 <div class="top-bar">
     <h1>漫畫後台管理</h1>
+    <button onclick="showCreateWork()" style="padding:8px 18px;border-radius:6px;border:none;cursor:pointer;font-size:.88em;color:#fff;background:#e94560">+ 新增漫畫</button>
     <a href="<?= BASE_URL ?>/" target="_blank" class="btn-home">前台首頁</a>
     <form method="post" style="display:inline"><button name="logout" value="1" class="btn-logout">登出</button></form>
 </div>
 
-<div class="work-grid">
+<div class="work-list" id="workList">
 <?php foreach ($data as $id => $m): ?>
-    <a href="?work=<?= urlencode($id) ?>" class="work-card">
-        <div class="work-cover">
-            <?php if (!empty($m['cover']) && file_exists(BASE_PATH . '/' . $m['cover'])): ?>
-                <img src="<?= BASE_URL . '/' . htmlspecialchars($m['cover']) ?>" alt="<?= htmlspecialchars($m['title']) ?>">
-            <?php else: ?>
-                <span class="placeholder"><?= mb_substr($m['title'], 0, 1) ?></span>
-            <?php endif; ?>
-        </div>
-        <div class="work-info">
-            <h3><?= htmlspecialchars($m['title']) ?></h3>
-            <div class="meta">
-                <?= count($m['chapters'] ?? []) ?> 章節
-                <?php if (!empty($m['updated'])): ?> · <?= htmlspecialchars($m['updated']) ?><?php endif; ?>
+    <div class="work-row" draggable="true" data-id="<?= htmlspecialchars($id) ?>">
+        <span class="drag-handle" title="拖曳排序">☰</span>
+        <a href="?work=<?= urlencode($id) ?>" class="work-row-link">
+            <div class="work-thumb">
+                <?php if (!empty($m['cover']) && file_exists(BASE_PATH . '/' . $m['cover'])): ?>
+                    <img src="<?= BASE_URL . '/' . htmlspecialchars($m['cover']) ?>" alt="<?= htmlspecialchars($m['title']) ?>">
+                <?php else: ?>
+                    <span class="placeholder"><?= mb_substr($m['title'], 0, 1) ?></span>
+                <?php endif; ?>
             </div>
-            <span class="status"><?= htmlspecialchars($m['status'] ?? '連載中') ?></span>
+            <div class="work-body">
+                <h3><?= htmlspecialchars($m['title']) ?></h3>
+                <div class="meta">
+                    <?= count($m['chapters'] ?? []) ?> 章節
+                    <?php if (!empty($m['updated'])): ?> · <?= htmlspecialchars($m['updated']) ?><?php endif; ?>
+                </div>
+                <span class="status"><?= htmlspecialchars($m['status'] ?? '連載中') ?></span>
+            </div>
+        </a>
+        <div class="work-actions">
+            <button class="work-del-btn" onclick="event.stopPropagation();deleteWork('<?= htmlspecialchars($id) ?>','<?= htmlspecialchars($m['title']) ?>')" title="刪除作品">✕</button>
         </div>
-    </a>
+    </div>
 <?php endforeach; ?>
 </div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Create Work Modal -->
+<div class="modal-overlay" id="createModal">
+    <div class="modal" style="min-width:360px">
+        <h3>新增漫畫</h3>
+        <label style="font-size:.85em;color:#aaa;display:block;margin-bottom:4px">作品 ID（英文小寫/數字/底線）</label>
+        <input type="text" id="newWorkId" placeholder="例：my_comic" pattern="[a-z0-9_]+" style="margin-bottom:8px">
+        <label style="font-size:.85em;color:#aaa;display:block;margin-bottom:4px">作品名稱</label>
+        <input type="text" id="newWorkTitle" placeholder="例：我的漫畫">
+        <label style="font-size:.85em;color:#aaa;display:block;margin-bottom:4px">簡介（選填）</label>
+        <input type="text" id="newWorkDesc" placeholder="作品簡介">
+        <label style="font-size:.85em;color:#aaa;display:block;margin-bottom:4px">狀態</label>
+        <select id="newWorkStatus" style="width:100%;padding:10px;border:1px solid #444;border-radius:6px;background:#0f3460;color:#eee;font-size:1em;margin-bottom:12px">
+            <option value="連載中">連載中</option>
+            <option value="已完結">已完結</option>
+            <option value="休刊中">休刊中</option>
+        </select>
+        <div class="modal-btns">
+            <button class="btn-cancel" onclick="document.getElementById('createModal').classList.remove('show')">取消</button>
+            <button class="btn-ok" onclick="createWork()">新增</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const toast = document.getElementById('toast');
+function showToast(msg, isError) {
+    toast.textContent = msg;
+    toast.className = 'toast' + (isError ? ' error' : '');
+    toast.style.display = 'block';
+    setTimeout(() => toast.style.display = 'none', 3000);
+}
+
+function showCreateWork() {
+    document.getElementById('createModal').classList.add('show');
+    document.getElementById('newWorkId').value = '';
+    document.getElementById('newWorkTitle').value = '';
+    document.getElementById('newWorkDesc').value = '';
+    document.getElementById('newWorkId').focus();
+}
+
+function createWork() {
+    const id = document.getElementById('newWorkId').value.trim();
+    const title = document.getElementById('newWorkTitle').value.trim();
+    const description = document.getElementById('newWorkDesc').value.trim();
+    const status = document.getElementById('newWorkStatus').value;
+    if (!id || !title) { showToast('請填寫 ID 和名稱', true); return; }
+    if (!/^[a-z0-9_]+$/.test(id)) { showToast('ID 只能使用小寫英文、數字和底線', true); return; }
+    fetch('./?api=create_work', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, title, description, status })
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.ok) window.location.href = '?work=' + encodeURIComponent(d.id);
+        else showToast(d.error || '新增失敗', true);
+    })
+    .catch(() => showToast('網路錯誤', true));
+}
+
+function deleteWork(id, title) {
+    if (!confirm('確定要刪除「' + title + '」？\n所有章節和頁面將一併刪除，此操作無法復原！')) return;
+    if (!confirm('再次確認：真的要刪除「' + title + '」嗎？')) return;
+    fetch('./?api=delete_work', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.ok) { showToast('已刪除'); setTimeout(() => location.reload(), 500); }
+        else showToast(d.error || '刪除失敗', true);
+    })
+    .catch(() => showToast('網路錯誤', true));
+}
+
+document.getElementById('newWorkId').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('newWorkTitle').focus(); });
+document.getElementById('newWorkTitle').addEventListener('keydown', e => { if (e.key === 'Enter') createWork(); });
+
+// ── Drag reorder works ──
+(function() {
+    const list = document.getElementById('workList');
+    if (!list) return;
+    let dragEl = null;
+    let touchY = 0;
+    let touchClone = null;
+
+    // Desktop drag
+    list.addEventListener('dragstart', e => {
+        const row = e.target.closest('.work-row');
+        if (!row || !e.target.closest('.drag-handle')) { e.preventDefault(); return; }
+        dragEl = row;
+        row.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+    });
+    list.addEventListener('dragend', e => {
+        if (dragEl) dragEl.classList.remove('dragging');
+        list.querySelectorAll('.work-row').forEach(r => r.classList.remove('drag-over'));
+        dragEl = null;
+    });
+    list.addEventListener('dragover', e => {
+        e.preventDefault();
+        const row = e.target.closest('.work-row');
+        if (!row || row === dragEl) return;
+        list.querySelectorAll('.work-row').forEach(r => r.classList.remove('drag-over'));
+        row.classList.add('drag-over');
+    });
+    list.addEventListener('dragleave', e => {
+        const row = e.target.closest('.work-row');
+        if (row) row.classList.remove('drag-over');
+    });
+    list.addEventListener('drop', e => {
+        e.preventDefault();
+        const target = e.target.closest('.work-row');
+        if (!target || !dragEl || target === dragEl) return;
+        target.classList.remove('drag-over');
+        const rows = [...list.querySelectorAll('.work-row')];
+        const fi = rows.indexOf(dragEl), ti = rows.indexOf(target);
+        if (fi < ti) target.after(dragEl);
+        else target.before(dragEl);
+        saveWorkOrder();
+    });
+
+    // Touch drag (mobile)
+    list.addEventListener('touchstart', e => {
+        const handle = e.target.closest('.drag-handle');
+        if (!handle) return;
+        const row = handle.closest('.work-row');
+        if (!row) return;
+        e.preventDefault();
+        dragEl = row;
+        touchY = e.touches[0].clientY;
+        row.style.opacity = '0.5';
+    }, { passive: false });
+
+    list.addEventListener('touchmove', e => {
+        if (!dragEl) return;
+        e.preventDefault();
+        const y = e.touches[0].clientY;
+        const el = document.elementFromPoint(e.touches[0].clientX, y);
+        const target = el ? el.closest('.work-row') : null;
+        list.querySelectorAll('.work-row').forEach(r => r.classList.remove('drag-over'));
+        if (target && target !== dragEl) target.classList.add('drag-over');
+    }, { passive: false });
+
+    list.addEventListener('touchend', e => {
+        if (!dragEl) return;
+        dragEl.style.opacity = '';
+        const overRow = list.querySelector('.work-row.drag-over');
+        if (overRow && overRow !== dragEl) {
+            const rows = [...list.querySelectorAll('.work-row')];
+            const fi = rows.indexOf(dragEl), ti = rows.indexOf(overRow);
+            if (fi < ti) overRow.after(dragEl);
+            else overRow.before(dragEl);
+            saveWorkOrder();
+        }
+        list.querySelectorAll('.work-row').forEach(r => r.classList.remove('drag-over'));
+        dragEl = null;
+    });
+
+    function saveWorkOrder() {
+        const ids = [...list.querySelectorAll('.work-row')].map(r => r.dataset.id);
+        fetch('./?api=reorder_works', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ order: ids })
+        })
+        .then(r => r.json())
+        .then(d => {
+            if (d.ok) showToast('排序已儲存');
+            else showToast('排序儲存失敗', true);
+        })
+        .catch(() => showToast('網路錯誤', true));
+    }
+})();
+</script>
 
 </body>
 </html>
