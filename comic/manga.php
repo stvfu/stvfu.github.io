@@ -79,20 +79,83 @@ $last_ch = !empty($chapters) ? $chapters[count($chapters) - 1] : null;
     </div>
 
     <div class="chapter-section">
-        <h2>章節列表</h2>
+        <div class="chapter-header">
+            <h2>章節列表</h2>
+            <button class="sort-btn" id="sortBtn" onclick="toggleSort()" title="切換排序">新→舊 ▼</button>
+        </div>
+        <?php
+            $categories = $manga['categories'] ?? [];
+            $has_cats = !empty($categories);
+        ?>
         <?php if (empty($chapters)): ?>
             <div class="empty-state"><p>尚無章節</p></div>
         <?php else: ?>
-        <ul class="chapter-list">
+
+        <?php if ($has_cats): ?>
+        <div class="chapter-cat-tabs" id="chapterCatTabs">
+            <button class="chapter-cat-tab active" data-cat="">全部</button>
+            <?php foreach ($categories as $cat): ?>
+                <button class="chapter-cat-tab" data-cat="<?= htmlspecialchars($cat) ?>"><?= htmlspecialchars($cat) ?></button>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+
+        <ul class="chapter-list" id="chapterList">
             <?php foreach (array_reverse($chapters) as $ch): ?>
-            <li>
+            <li data-category="<?= htmlspecialchars($ch['category'] ?? '') ?>"
+                data-has-cover="<?= !empty($ch['cover']) ? '1' : '0' ?>"
+                data-link="<?= htmlspecialchars($ch['link'] ?? '') ?>">
                 <a href="reader.php?id=<?= urlencode($id) ?>&ch=<?= urlencode($ch['id']) ?>">
+                    <?php if (!empty($ch['cover'])): ?>
+                        <img src="<?= htmlspecialchars($ch['cover']) ?>" class="ch-cover-thumb" alt="">
+                    <?php endif; ?>
                     <span class="ch-title"><?= htmlspecialchars($ch['title']) ?></span>
                     <span class="ch-date"><?= htmlspecialchars($ch['date'] ?? '') ?></span>
                 </a>
+                <?php if (!empty($ch['link'])): ?>
+                    <a href="<?= htmlspecialchars($ch['link']) ?>" target="_blank" rel="noopener" class="ch-ext-link">購買連結</a>
+                <?php endif; ?>
             </li>
             <?php endforeach; ?>
         </ul>
+
+        <script>
+        let sortNewest = true;
+        function toggleSort() {
+            sortNewest = !sortNewest;
+            const list = document.getElementById('chapterList');
+            const items = [...list.children];
+            items.reverse();
+            items.forEach(li => list.appendChild(li));
+            document.getElementById('sortBtn').textContent = sortNewest ? '新→舊 ▼' : '舊→新 ▲';
+        }
+        </script>
+
+        <?php if ($has_cats): ?>
+        <script>
+        function updateChapterView(cat) {
+            const list = document.getElementById('chapterList');
+            const isAll = (cat === '');
+            list.classList.toggle('hide-covers', isAll);
+            list.classList.toggle('card-mode', !isAll);
+            document.querySelectorAll('#chapterList li').forEach(li => {
+                const show = isAll || li.dataset.category === cat;
+                li.style.display = show ? '' : 'none';
+                const extLink = li.querySelector('.ch-ext-link');
+                if (extLink) extLink.style.display = isAll ? 'none' : '';
+            });
+        }
+        updateChapterView('');
+        document.getElementById('chapterCatTabs').addEventListener('click', function(e) {
+            const btn = e.target.closest('.chapter-cat-tab');
+            if (!btn) return;
+            this.querySelectorAll('.chapter-cat-tab').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            updateChapterView(btn.dataset.cat);
+        });
+        </script>
+        <?php endif; ?>
+
         <?php endif; ?>
     </div>
 </div>

@@ -205,12 +205,16 @@ if ($api !== '') {
             if (!is_dir($abs_dir)) mkdir($abs_dir, 0755, true);
             $order_path = "{$ch_dir}/page_order.json";
             file_put_contents(BASE_PATH . '/' . $order_path, '[]');
+            $category = trim($input['category'] ?? '');
+            $link = trim($input['link'] ?? '');
             $new_ch = [
                 'id' => $ch_id,
                 'title' => $title,
                 'dir' => $ch_dir,
                 'order' => $order_path,
                 'date' => date('Y-m-d'),
+                'category' => $category,
+                'link' => $link,
             ];
             $data[$work_id]['chapters'][] = $new_ch;
             $data[$work_id]['updated'] = date('Y-m-d');
@@ -358,6 +362,10 @@ if ($api !== '') {
             if (isset($input['status'])) $data[$work_id]['status'] = trim($input['status']);
             if (isset($input['updated'])) $data[$work_id]['updated'] = trim($input['updated']);
             if (isset($input['genres'])) $data[$work_id]['genres'] = array_map('trim', (array)$input['genres']);
+            if (isset($input['categories'])) {
+                $cats = array_values(array_filter(array_map('trim', (array)$input['categories'])));
+                $data[$work_id]['categories'] = $cats;
+            }
             save_data($data);
             json_out(['ok' => true]);
             break;
@@ -371,6 +379,8 @@ if ($api !== '') {
             foreach ($data[$work_id]['chapters'] as &$ch) {
                 if ($ch['id'] === $ch_id) {
                     $ch['title'] = $new_title;
+                    if (isset($input['category'])) $ch['category'] = trim($input['category']);
+                    if (isset($input['link'])) $ch['link'] = trim($input['link']);
                     $found = true;
                     break;
                 }
@@ -379,6 +389,38 @@ if ($api !== '') {
             if (!$found) json_out(['error' => '章節不存在'], 404);
             save_data($data);
             json_out(['ok' => true]);
+            break;
+
+        case 'upload_ch_cover':
+            $ch_id = $_GET['ch'] ?? '';
+            if (empty($_FILES['cover'])) json_out(['error' => '未選擇檔案'], 400);
+            $file = $_FILES['cover'];
+            if ($file['error'] !== UPLOAD_ERR_OK) json_out(['error' => '上傳錯誤'], 400);
+            $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+            if (!in_array($ext, ALLOWED_IMG)) json_out(['error' => '不支援的格式'], 400);
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            if (!str_starts_with(finfo_file($finfo, $file['tmp_name']), 'image/')) json_out(['error' => '非圖片'], 400);
+            finfo_close($finfo);
+            $found = false;
+            $cover_path = '';
+            foreach ($data[$work_id]['chapters'] as &$ch) {
+                if ($ch['id'] === $ch_id) {
+                    $ch_dir = BASE_PATH . '/' . $ch['dir'];
+                    if (!is_dir($ch_dir)) mkdir($ch_dir, 0755, true);
+                    foreach (glob($ch_dir . '/ch_cover.*') as $old) unlink($old);
+                    $dest = $ch_dir . '/ch_cover.' . $ext;
+                    move_uploaded_file($file['tmp_name'], $dest);
+                    chmod($dest, 0644);
+                    $ch['cover'] = $ch['dir'] . '/ch_cover.' . $ext;
+                    $cover_path = $ch['cover'];
+                    $found = true;
+                    break;
+                }
+            }
+            unset($ch);
+            if (!$found) json_out(['error' => '章節不存在'], 404);
+            save_data($data);
+            json_out(['ok' => true, 'cover' => $cover_path]);
             break;
 
         default:
@@ -568,7 +610,22 @@ body{background:#1a1a2e;color:#eee;font-family:-apple-system,BlinkMacSystemFont,
 .btn-save-info{align-self:flex-start;padding:10px 28px;border:none;border-radius:6px;background:#e94560;color:#fff;cursor:pointer;font-size:.92em;margin-top:4px}
 .btn-save-info:hover{background:#c73e54}
 
-.ch-tab{position:relative}
+.cat-list{display:flex;flex-direction:column;gap:6px}
+.cat-item{display:flex;align-items:center;gap:8px}
+.cat-drag{cursor:grab;color:#555;font-size:1em;user-select:none}
+.cat-input{flex:1;padding:8px 12px;border:1px solid #444;border-radius:6px;background:#0f3460;color:#eee;font-size:.9em}
+.cat-input:focus{border-color:#e94560;outline:none}
+.cat-del{width:26px;height:26px;border:none;border-radius:50%;background:rgba(233,69,96,.6);color:#fff;cursor:pointer;font-size:.75em;flex-shrink:0}
+
+.cat-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #333}
+.cat-filter-tab{padding:6px 16px;border-radius:20px;border:1px solid #444;color:#aaa;font-size:.82em;text-decoration:none;transition:all .15s}
+.cat-filter-tab:hover{border-color:#e94560;color:#eee}
+.cat-filter-tab.active{background:#e94560;border-color:#e94560;color:#fff}
+
+.ch-tab{position:relative;display:flex;align-items:center;gap:6px}
+.ch-tab-cover{width:28px;height:38px;object-fit:cover;border-radius:3px;flex-shrink:0}
+.ch-tab-text{display:flex;flex-direction:column;line-height:1.2}
+.ch-cat-label{font-size:.65em;color:#888;font-weight:normal}
 .ch-rename{margin-left:4px;opacity:.4;font-size:.75em;cursor:pointer}
 .ch-rename:hover{opacity:1}
 </style>
@@ -630,15 +687,61 @@ body{background:#1a1a2e;color:#eee;font-family:-apple-system,BlinkMacSystemFont,
     </div>
 </div>
 
+<!-- Categories -->
+<div class="section">
+    <h3>分類設定</h3>
+    <p style="font-size:.82em;color:#888;margin-bottom:10px">設定章節分類頁籤（前台會顯示為切換標籤），例如：網路連載、卷、番外</p>
+    <div id="catList" class="cat-list">
+        <?php $categories = $work['categories'] ?? []; ?>
+        <?php foreach ($categories as $i => $cat): ?>
+        <div class="cat-item" data-index="<?= $i ?>">
+            <span class="cat-drag" title="拖曳排序">☰</span>
+            <input type="text" class="cat-input" value="<?= htmlspecialchars($cat) ?>">
+            <button class="cat-del" onclick="this.parentElement.remove()" title="移除">✕</button>
+        </div>
+        <?php endforeach; ?>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:10px">
+        <button onclick="addCategory()" style="padding:6px 16px;border:none;border-radius:6px;background:#0f3460;color:#eee;cursor:pointer;font-size:.85em">+ 新增分類</button>
+        <button onclick="saveCategories()" style="padding:6px 16px;border:none;border-radius:6px;background:#e94560;color:#fff;cursor:pointer;font-size:.85em">儲存分類</button>
+    </div>
+</div>
+
 <!-- Chapters -->
+<?php
+    $categories = $work['categories'] ?? [];
+    $active_cat = $_GET['cat'] ?? '';
+    $filtered_chapters = $chapters;
+    if ($active_cat !== '' && !empty($categories)) {
+        $filtered_chapters = array_values(array_filter($chapters, fn($c) => ($c['category'] ?? '') === $active_cat));
+    }
+?>
 <div class="section">
     <h3>章節管理</h3>
+
+    <?php if (!empty($categories)): ?>
+    <div class="cat-tabs">
+        <a href="?work=<?= urlencode($work_id) ?>&cat=" class="cat-filter-tab <?= $active_cat === '' ? 'active' : '' ?>">全部</a>
+        <?php foreach ($categories as $cat): ?>
+            <a href="?work=<?= urlencode($work_id) ?>&cat=<?= urlencode($cat) ?>" class="cat-filter-tab <?= $active_cat === $cat ? 'active' : '' ?>"><?= htmlspecialchars($cat) ?></a>
+        <?php endforeach; ?>
+    </div>
+    <?php endif; ?>
+
     <div class="ch-tabs">
-        <?php foreach ($chapters as $ch): ?>
-            <a href="?work=<?= urlencode($work_id) ?>&ch=<?= urlencode($ch['id']) ?>"
+        <?php foreach ($filtered_chapters as $ch): ?>
+            <a href="?work=<?= urlencode($work_id) ?>&ch=<?= urlencode($ch['id']) ?><?= $active_cat !== '' ? '&cat=' . urlencode($active_cat) : '' ?>"
                class="ch-tab <?= $ch['id'] === $active_ch ? 'active' : '' ?>">
-                <?= htmlspecialchars($ch['title']) ?>
-                <span class="ch-rename" onclick="event.preventDefault();showRenameChapter('<?= htmlspecialchars($ch['id']) ?>','<?= htmlspecialchars(addslashes($ch['title'])) ?>')" title="重新命名">✎</span>
+                <?php if (!empty($ch['cover'])): ?>
+                    <img src="<?= BASE_URL . '/' . htmlspecialchars($ch['cover']) ?>" class="ch-tab-cover" alt="">
+                <?php endif; ?>
+                <span class="ch-tab-text">
+                    <?= htmlspecialchars($ch['title']) ?>
+                    <?php if (!empty($ch['category'])): ?>
+                        <small class="ch-cat-label"><?= htmlspecialchars($ch['category']) ?></small>
+                    <?php endif; ?>
+                </span>
+                <span class="ch-rename" onclick="event.preventDefault();showRenameChapter('<?= htmlspecialchars($ch['id']) ?>','<?= htmlspecialchars(addslashes($ch['title'])) ?>','<?= htmlspecialchars(addslashes($ch['category'] ?? '')) ?>','<?= htmlspecialchars(addslashes($ch['link'] ?? '')) ?>')" title="編輯">✎</span>
                 <span class="ch-del" onclick="event.preventDefault();deleteChapter('<?= htmlspecialchars($ch['id']) ?>','<?= htmlspecialchars($ch['title']) ?>')" title="刪除章節">✕</span>
             </a>
         <?php endforeach; ?>
@@ -679,6 +782,17 @@ body{background:#1a1a2e;color:#eee;font-family:-apple-system,BlinkMacSystemFont,
     <div class="modal">
         <h3>新增章節</h3>
         <input type="text" id="chTitle" placeholder="章節名稱（例：第1話）" autofocus>
+        <?php if (!empty($categories)): ?>
+        <label style="font-size:.82em;color:#aaa;display:block;margin-bottom:4px">分類</label>
+        <select id="chCategory" style="width:100%;padding:10px;border:1px solid #444;border-radius:6px;background:#0f3460;color:#eee;font-size:1em;margin-bottom:12px">
+            <option value="">（無分類）</option>
+            <?php foreach ($categories as $cat): ?>
+                <option value="<?= htmlspecialchars($cat) ?>"><?= htmlspecialchars($cat) ?></option>
+            <?php endforeach; ?>
+        </select>
+        <?php endif; ?>
+        <label style="font-size:.82em;color:#aaa;display:block;margin-bottom:4px">超連結（選填，例如通販頁面）</label>
+        <input type="url" id="chLink" placeholder="https://...">
         <div class="modal-btns">
             <button class="btn-cancel" onclick="document.getElementById('chModal').classList.remove('show')">取消</button>
             <button class="btn-ok" onclick="addChapter()">新增</button>
@@ -689,9 +803,30 @@ body{background:#1a1a2e;color:#eee;font-family:-apple-system,BlinkMacSystemFont,
 <!-- Rename Chapter Modal -->
 <div class="modal-overlay" id="renameModal">
     <div class="modal">
-        <h3>重新命名章節</h3>
-        <input type="text" id="renameTitle" placeholder="新的章節名稱">
+        <h3>編輯章節</h3>
+        <label style="font-size:.82em;color:#aaa;display:block;margin-bottom:4px">章節名稱</label>
+        <input type="text" id="renameTitle" placeholder="章節名稱">
         <input type="hidden" id="renameChId">
+        <?php if (!empty($categories)): ?>
+        <label style="font-size:.82em;color:#aaa;display:block;margin-bottom:4px">分類</label>
+        <select id="renameCategory" style="width:100%;padding:10px;border:1px solid #444;border-radius:6px;background:#0f3460;color:#eee;font-size:1em;margin-bottom:12px">
+            <option value="">（無分類）</option>
+            <?php foreach ($categories as $cat): ?>
+                <option value="<?= htmlspecialchars($cat) ?>"><?= htmlspecialchars($cat) ?></option>
+            <?php endforeach; ?>
+        </select>
+        <?php endif; ?>
+        <label style="font-size:.82em;color:#aaa;display:block;margin-bottom:4px">超連結（選填，例如通販頁面）</label>
+        <input type="url" id="renameLink" placeholder="https://...">
+        <label style="font-size:.82em;color:#aaa;display:block;margin-bottom:4px">章節封面（選填，適用於實體本）</label>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+            <div id="chCoverPreview" style="width:48px;height:64px;background:#0a0a1a;border-radius:4px;overflow:hidden;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                <span style="color:#555;font-size:.8em">無</span>
+            </div>
+            <label style="padding:6px 14px;border-radius:6px;background:#0f3460;color:#eee;cursor:pointer;font-size:.85em">
+                上傳封面<input type="file" id="chCoverInput" accept="image/*" style="display:none">
+            </label>
+        </div>
         <div class="modal-btns">
             <button class="btn-cancel" onclick="document.getElementById('renameModal').classList.remove('show')">取消</button>
             <button class="btn-ok" onclick="renameChapter()">儲存</button>
@@ -729,33 +864,86 @@ function saveInfo() {
     .catch(() => showToast('網路錯誤', true));
 }
 
+// ── Categories ──
+function addCategory() {
+    const list = document.getElementById('catList');
+    const div = document.createElement('div');
+    div.className = 'cat-item';
+    div.innerHTML = '<span class="cat-drag">☰</span><input type="text" class="cat-input" placeholder="分類名稱"><button class="cat-del" onclick="this.parentElement.remove()" title="移除">✕</button>';
+    list.appendChild(div);
+    div.querySelector('input').focus();
+}
+
+function saveCategories() {
+    const inputs = document.querySelectorAll('#catList .cat-input');
+    const categories = [...inputs].map(el => el.value.trim()).filter(Boolean);
+    fetch(apiBase + '&api=save_info', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ categories })
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.ok) { showToast('分類已儲存'); setTimeout(() => location.reload(), 500); }
+        else showToast(d.error || '儲存失敗', true);
+    })
+    .catch(() => showToast('網路錯誤', true));
+}
+
 // ── Rename Chapter ──
-function showRenameChapter(chId, currentTitle) {
+function showRenameChapter(chId, currentTitle, currentCat, currentLink) {
     document.getElementById('renameChId').value = chId;
     document.getElementById('renameTitle').value = currentTitle;
+    document.getElementById('renameLink').value = currentLink || '';
+    const catSel = document.getElementById('renameCategory');
+    if (catSel) catSel.value = currentCat || '';
+    document.getElementById('chCoverPreview').innerHTML = '<span style="color:#555;font-size:.8em">無</span>';
     document.getElementById('renameModal').classList.add('show');
     document.getElementById('renameTitle').focus();
     document.getElementById('renameTitle').select();
 }
 document.getElementById('renameTitle').addEventListener('keydown', e => { if (e.key === 'Enter') renameChapter(); });
 
+// Chapter cover upload
+document.getElementById('chCoverInput').addEventListener('change', function() {
+    if (!this.files.length) return;
+    const chId = document.getElementById('renameChId').value;
+    const fd = new FormData();
+    fd.append('cover', this.files[0]);
+    fetch(apiBase + '&api=upload_ch_cover&ch=' + encodeURIComponent(chId), { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(d => {
+            if (d.ok) {
+                document.getElementById('chCoverPreview').innerHTML = '<img src="<?= BASE_URL ?>/' + d.cover + '?t=' + Date.now() + '" style="width:100%;height:100%;object-fit:cover">';
+                showToast('章節封面已更新');
+            } else {
+                showToast(d.error || '上傳失敗', true);
+            }
+        })
+        .catch(() => showToast('網路錯誤', true));
+    this.value = '';
+});
+
 function renameChapter() {
     const chId = document.getElementById('renameChId').value;
     const title = document.getElementById('renameTitle').value.trim();
+    const catSel = document.getElementById('renameCategory');
+    const category = catSel ? catSel.value : '';
+    const link = document.getElementById('renameLink').value.trim();
     if (!title) { showToast('標題不能為空', true); return; }
     fetch(apiBase + '&api=rename_chapter&ch=' + encodeURIComponent(chId), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title })
+        body: JSON.stringify({ title, category, link })
     })
     .then(r => r.json())
     .then(d => {
         if (d.ok) {
-            showToast('章節已重新命名');
+            showToast('章節已更新');
             document.getElementById('renameModal').classList.remove('show');
             setTimeout(() => location.reload(), 500);
         } else {
-            showToast(d.error || '重新命名失敗', true);
+            showToast(d.error || '儲存失敗', true);
         }
     })
     .catch(() => showToast('網路錯誤', true));
@@ -827,10 +1015,13 @@ document.getElementById('chTitle').addEventListener('keydown', e => { if (e.key 
 function addChapter() {
     const title = document.getElementById('chTitle').value.trim();
     if (!title) return;
+    const catSel = document.getElementById('chCategory');
+    const category = catSel ? catSel.value : '';
+    const link = document.getElementById('chLink').value.trim();
     fetch(apiBase + '&api=add_chapter', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title })
+        body: JSON.stringify({ title, category, link })
     })
     .then(r => r.json())
     .then(d => {
