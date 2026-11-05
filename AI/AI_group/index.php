@@ -17,13 +17,19 @@ if (empty($_SESSION['csrf'])) {
 
 $loginError = false;
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username'])) {
-    if ($_POST['username'] === ($config['username'] ?? '')
+    if (!hash_equals($_SESSION['csrf'] ?? '', $_POST['csrf'] ?? '')) {
+        $loginError = true;
+    } elseif ($_POST['username'] === ($config['username'] ?? '')
         && password_verify($_POST['password'] ?? '', $config['password_hash'] ?? '')) {
+        session_regenerate_id(true);
         $_SESSION['user'] = $_POST['username'];
+        $_SESSION['csrf'] = bin2hex(random_bytes(32));
         header('Location: ' . strtok($_SERVER['REQUEST_URI'], '?'));
         exit;
+    } else {
+        sleep(1);
+        $loginError = true;
     }
-    $loginError = true;
 }
 
 $providers = [
@@ -220,6 +226,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
         <h1>🏮</h1>
         <div class="sub">AI 居酒屋</div>
         <?php if ($loginError): ?><div class="login-error">帳號或密碼錯誤</div><?php endif; ?>
+        <input type="hidden" name="csrf" value="<?= htmlspecialchars($_SESSION['csrf']) ?>">
         <input name="username" placeholder="帳號" autocomplete="username" required autofocus>
         <input name="password" type="password" placeholder="密碼" autocomplete="current-password" required>
         <button type="submit">進入</button>
@@ -323,8 +330,8 @@ const MODE_DESC = {
     story: '📖 故事接龍模式 — 起一個頭，大家輪流編故事',
 };
 
-let characters = loadChars();
-let userIdentity = loadUserIdentity();
+let characters = structuredClone(DEFAULT_CHARS);
+let userIdentity = { name: '店長', background: '', scenario: '' };
 let messages   = [];
 let mode       = 'chat';
 let streaming  = false;
@@ -340,26 +347,33 @@ const $input  = document.getElementById('input');
 const $send   = document.getElementById('send');
 const $status = document.getElementById('status');
 
-// ---- LocalStorage ----
-function loadChars() {
+// ---- DB persistence ----
+async function loadSettingsFromDB() {
     try {
-        const d = JSON.parse(localStorage.getItem('aigroup_chars'));
-        if (Array.isArray(d) && d.length > 0) return d;
+        const r = await fetch('conversations_api.php?action=settings_load');
+        const d = await r.json();
+        if (d.characters && d.characters.length > 0) {
+            characters = d.characters;
+            nextId = characters.reduce((m, c) => Math.max(m, parseInt(c.id.slice(1)) || 0), 0) + 1;
+        }
+        if (d.user_name) userIdentity.name = d.user_name;
+        if (d.user_background !== undefined) userIdentity.background = d.user_background;
+        if (d.scenario !== undefined) userIdentity.scenario = d.scenario;
+        renderCharsBar();
     } catch {}
-    return structuredClone(DEFAULT_CHARS);
 }
-function saveChars() {
-    localStorage.setItem('aigroup_chars', JSON.stringify(characters));
-}
-function loadUserIdentity() {
-    try {
-        const d = JSON.parse(localStorage.getItem('aigroup_user'));
-        if (d && d.name) return d;
-    } catch {}
-    return { name: '店長', background: '', scenario: '' };
-}
-function saveUserIdentity() {
-    localStorage.setItem('aigroup_user', JSON.stringify(userIdentity));
+async function saveSettingsToDB() {
+    const chars = characters.map(c => ({
+        id: c.id, name: c.name, gender: c.gender || '', provider: c.provider,
+        model: c.model, color: c.color, background: c.background || '', personality: c.personality || '',
+    }));
+    await dbPost({
+        action: 'settings_save',
+        characters: chars,
+        user_name: userIdentity.name,
+        user_background: userIdentity.background || '',
+        scenario: userIdentity.scenario || '',
+    }).catch(() => {});
 }
 
 // ---- Characters bar ----
@@ -475,8 +489,9 @@ function resetDefaults() {
 }
 
 function collectFromUI() {
-    document.querySelectorAll('.cc').forEach((card, i) => {
-        if (i >= characters.length) return;
+    document.querySelectorAll('.cc[data-idx]').forEach(card => {
+        const i = parseInt(card.dataset.idx, 10);
+        if (isNaN(i) || i >= characters.length) return;
         const name = card.querySelector('[data-field="name"]')?.value.trim();
         const gender = card.querySelector('[data-field="gender"]')?.value || '';
         const prov = card.querySelector('[data-field="provider"]')?.value;
@@ -499,11 +514,10 @@ function collectUserIdentity() {
     userIdentity.scenario = (document.getElementById('set-scenario')?.value || '').trim();
 }
 
-function saveAndClose() {
+async function saveAndClose() {
     collectFromUI();
     collectUserIdentity();
-    saveChars();
-    saveUserIdentity();
+    await saveSettingsToDB();
     renderCharsBar();
     toggleSettings();
     messages = [];
@@ -823,7 +837,6 @@ async function switchConv(id) {
             provider: c.provider, model: c.model, color: c.color,
             background: c.background || '', personality: c.personality || '',
         }));
-        saveChars();
         renderCharsBar();
     }
     messages = (res.messages || []).map(m => ({ character: m.character, content: m.content }));
@@ -1109,6 +1122,7 @@ document.getElementById('autoChat').addEventListener('change', function() {
 
 // ---- Init ----
 renderCharsBar();
+loadSettingsFromDB();
 loadPresets();
 </script>
 <?php endif; ?>
