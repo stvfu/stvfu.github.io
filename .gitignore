@@ -1,4 +1,7 @@
 # comic/ 已獨立至 github.com/stvfu/comicpunch_app
 # 部署用 sync_comicpunch_repo_to_comic.sh 在 repo root
 comic/
+# web_editer/ 已獨立至 github.com/stvfu/web_editer (private)
+web_editer/
 security/
+consultant/
